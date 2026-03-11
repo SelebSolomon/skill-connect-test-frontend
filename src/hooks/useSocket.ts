@@ -10,7 +10,11 @@ export function useSocket() {
   useEffect(() => {
     if (!accessToken) return;
 
-    const socketBaseUrl = import.meta.env.VITE_SOCKET_BASE_URL || 'http://localhost:5000';
+    const socketBaseUrl =
+      import.meta.env.VITE_SOCKET_BASE_URL ||
+      (import.meta.env.PROD
+        ? 'https://skill-connect-test-1.onrender.com'
+        : 'http://localhost:5000');
     const socket = io(`${socketBaseUrl}/chat`, {
       auth: { token: accessToken },
       transports: ['websocket'],
