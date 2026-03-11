@@ -10,7 +10,8 @@ export function useSocket() {
   useEffect(() => {
     if (!accessToken) return;
 
-    const socket = io('http://localhost:5000/chat', {
+    const socketBaseUrl = import.meta.env.VITE_SOCKET_BASE_URL || 'http://localhost:5000';
+    const socket = io(`${socketBaseUrl}/chat`, {
       auth: { token: accessToken },
       transports: ['websocket'],
       reconnectionAttempts: 5,

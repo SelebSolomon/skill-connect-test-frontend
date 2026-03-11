@@ -24,7 +24,8 @@ export function useNotifications() {
   useEffect(() => {
     if (!accessToken || !isAuthenticated) return;
 
-    const socket = io('http://localhost:5000/notifications', {
+    const socketBaseUrl = import.meta.env.VITE_SOCKET_BASE_URL || 'http://localhost:5000';
+    const socket = io(`${socketBaseUrl}/notifications`, {
       auth: { token: accessToken },
       transports: ['websocket'],
       reconnectionAttempts: 5,
