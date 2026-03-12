@@ -1,8 +1,10 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.PROD ? 'https://skill-connect-test-1.onrender.com' : '/api');
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : '/api');
+
+if (import.meta.env.PROD && !BASE_URL) {
+  throw new Error('VITE_API_BASE_URL is required in production.');
+}
 
 export const api = axios.create({
   baseURL: BASE_URL,

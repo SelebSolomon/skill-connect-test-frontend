@@ -26,9 +26,10 @@ export function useNotifications() {
 
     const socketBaseUrl =
       import.meta.env.VITE_SOCKET_BASE_URL ||
-      (import.meta.env.PROD
-        ? 'https://skill-connect-test-1.onrender.com'
-        : 'http://localhost:5000');
+      (import.meta.env.PROD ? '' : 'http://localhost:5000');
+    if (import.meta.env.PROD && !socketBaseUrl) {
+      throw new Error('VITE_SOCKET_BASE_URL is required in production.');
+    }
     const socket = io(`${socketBaseUrl}/notifications`, {
       auth: { token: accessToken },
       transports: ['websocket'],
