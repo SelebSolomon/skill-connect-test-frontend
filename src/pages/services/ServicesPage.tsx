@@ -5,6 +5,7 @@ import { Search, Layers } from 'lucide-react';
 import { servicesApi } from '../../api/services.api';
 import { Spinner } from '../../components/ui/Spinner';
 import { Card } from '../../components/ui/Card';
+import { Select } from '../../components/ui/Select';
 
 export function ServicesPage() {
   const [search, setSearch] = useState('');
@@ -43,32 +44,48 @@ export function ServicesPage() {
         </div>
       </div>
 
-      {/* Category tabs */}
+      {/* Category filter */}
       {categories && categories.length > 0 && (
-        <div className="mb-8 flex flex-wrap gap-2">
-          <button
-            onClick={() => setSelectedCategory('')}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
-              !selectedCategory
-                ? 'bg-blue-700 text-white border-blue-700'
-                : 'bg-white text-gray-700 border-gray-200 hover:border-blue-400'
-            }`}
-          >
-            All
-          </button>
-          {categories.map((cat: string) => (
+        <div className="mb-8">
+          {/* Mobile: dropdown */}
+          <div className="sm:hidden">
+            <Select
+              label="Category"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              options={[
+                { value: '', label: 'All categories' },
+                ...categories.map((cat: string) => ({ value: cat, label: cat })),
+              ]}
+            />
+          </div>
+
+          {/* Desktop: tabs */}
+          <div className="hidden sm:flex flex-wrap gap-2">
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
+              onClick={() => setSelectedCategory('')}
               className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
-                selectedCategory === cat
+                !selectedCategory
                   ? 'bg-blue-700 text-white border-blue-700'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-blue-400'
               }`}
             >
-              {cat}
+              All
             </button>
-          ))}
+            {categories.map((cat: string) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat === selectedCategory ? '' : cat)}
+                className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                  selectedCategory === cat
+                    ? 'bg-blue-700 text-white border-blue-700'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-blue-400'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
