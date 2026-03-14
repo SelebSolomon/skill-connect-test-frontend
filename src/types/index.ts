@@ -77,10 +77,11 @@ export interface Job {
 }
 
 export interface Milestone {
+  _id?: string;
   title: string;
   description?: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  dueDate?: string;
+  amount?: number;
+  status: 'pending' | 'completed' | 'paid';
 }
 
 export interface JobQueryParams {

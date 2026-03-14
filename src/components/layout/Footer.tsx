@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Zap, Mail, Phone } from 'lucide-react';
+import { useAuthStore } from '../../store/auth.store';
 
 export function Footer() {
+  const { isAuthenticated } = useAuthStore();
+
   return (
     <footer className="border-t border-gray-200 bg-white mt-auto">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -33,28 +36,30 @@ export function Footer() {
             <nav className="flex flex-col gap-2.5 text-sm text-gray-600">
               <Link
                 to="/jobs"
-                className="hover:text-blue-700 transition-colors"
+                className="font-medium hover:text-blue-700 transition-colors"
               >
                 Find Jobs
               </Link>
               <Link
                 to="/services"
-                className="hover:text-blue-700 transition-colors"
+                className="font-medium hover:text-blue-700 transition-colors"
               >
                 Browse Services
               </Link>
               <Link
                 to="/providers"
-                className="hover:text-blue-700 transition-colors"
+                className="font-medium hover:text-blue-700 transition-colors"
               >
                 View Providers
               </Link>
-              <Link
-                to="/register"
-                className="hover:text-green-600 transition-colors font-medium"
-              >
-                Create Free Account
-              </Link>
+              {!isAuthenticated && (
+                <Link
+                  to="/register"
+                  className="font-semibold text-green-600 hover:text-green-700 transition-colors"
+                >
+                  Create Free Account
+                </Link>
+              )}
             </nav>
           </div>
 

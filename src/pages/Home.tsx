@@ -11,8 +11,11 @@ import { Spinner } from '../components/ui/Spinner';
 import { jobsApi } from '../api/jobs.api';
 import { profileApi } from '../api/profile.api';
 import { servicesApi } from '../api/services.api';
+import { useAuthStore } from '../store/auth.store';
 
 export function HomePage() {
+  const { isAuthenticated, user } = useAuthStore();
+
   const { data: jobsData } = useQuery({
     queryKey: ['jobs', { limit: 6 }],
     queryFn: () => jobsApi.getJobs({ limit: 6 }),
@@ -80,12 +83,28 @@ export function HomePage() {
                 Browse Available Jobs
               </Button>
             </Link>
-            <Link to="/register">
-              <Button size="lg" className="bg-white/10 text-white hover:bg-white/20 border border-white/25 backdrop-blur-sm shadow-sm">
-                Create Free Account
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-            </Link>
+            {!isAuthenticated ? (
+              <Link to="/register">
+                <Button size="lg" className="bg-white/10 text-white hover:bg-white/20 border border-white/25 backdrop-blur-sm shadow-sm">
+                  Create Free Account
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            ) : user?.role === 'client' ? (
+              <Link to="/jobs/create">
+                <Button size="lg" className="bg-white/10 text-white hover:bg-white/20 border border-white/25 backdrop-blur-sm shadow-sm">
+                  Post a Job
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/jobs">
+                <Button size="lg" className="bg-white/10 text-white hover:bg-white/20 border border-white/25 backdrop-blur-sm shadow-sm">
+                  Find Work
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Quick trust signals */}

@@ -24,7 +24,7 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-interface Milestone { title: string; description: string }
+interface Milestone { title: string; description: string; amount: string }
 
 export function CreateJobPage() {
   const navigate = useNavigate();
@@ -57,7 +57,14 @@ export function CreateJobPage() {
       fd.append('jobLocation', formData.jobLocation);
       fd.append('serviceId', formData.serviceId);
       if (photo) fd.append('photo', photo);
-      if (milestones.length > 0) fd.append('milestones', JSON.stringify(milestones));
+      if (milestones.length > 0) {
+        const serialized = milestones.map((m) => ({
+          title: m.title,
+          description: m.description || undefined,
+          amount: m.amount ? Number(m.amount) : undefined,
+        }));
+        fd.append('milestones', JSON.stringify(serialized));
+      }
       return jobsApi.createJob(fd);
     },
     onSuccess: (job) => {
@@ -75,7 +82,7 @@ export function CreateJobPage() {
     }
   };
 
-  const addMilestone = () => setMilestones((m) => [...m, { title: '', description: '' }]);
+  const addMilestone = () => setMilestones((m) => [...m, { title: '', description: '', amount: '' }]);
   const removeMilestone = (i: number) => setMilestones((m) => m.filter((_, idx) => idx !== i));
   const updateMilestone = (i: number, field: keyof Milestone, value: string) =>
     setMilestones((m) => m.map((ms, idx) => idx === i ? { ...ms, [field]: value } : ms));
@@ -190,6 +197,12 @@ export function CreateJobPage() {
                   placeholder="Description (optional)"
                   value={m.description}
                   onChange={(e) => updateMilestone(i, 'description', e.target.value)}
+                />
+                <Input
+                  placeholder="Payment amount ($)"
+                  type="number"
+                  value={m.amount}
+                  onChange={(e) => updateMilestone(i, 'amount', e.target.value)}
                 />
               </div>
             ))}
