@@ -31,14 +31,16 @@ import type { Conversation, Message, Service, User, ConversationParticipant } fr
 
 function getOtherParticipant(conv: Conversation, myId: string): ConversationParticipant | undefined {
   return conv.participants.find((p) => {
-    const id = typeof p.userId === 'string' ? p.userId : (p.userId as User)._id;
+    const id = typeof p.userId === 'object'
+      ? (p.userId as User)._id?.toString()
+      : (p.userId as string);
     return id !== myId;
   });
 }
 
 function participantName(p: ConversationParticipant | undefined): string {
   if (!p) return 'Unknown';
-  return typeof p.userId === 'object' ? (p.userId as User).name : 'User';
+  return typeof p.userId === 'object' ? ((p.userId as User).name ?? 'Unknown') : 'Unknown';
 }
 
 function participantInitial(p: ConversationParticipant | undefined): string {
@@ -323,16 +325,17 @@ export function ConversationsPage() {
       setLocalMessages((prev) =>
         prev.find((m) => m._id === message._id) ? prev : [...prev, message],
       );
-      setLocalConvs((prev) =>
-        prev.map((c) =>
+      setLocalConvs((prev) => {
+        const exists = prev.some((c) => c._id === selectedId);
+        const updated = prev.map((c) =>
           c._id === selectedId
-            ? {
-                ...c,
-                lastMessage: { messageId: message._id, text: message.content, sentAt: message.createdAt },
-              }
+            ? { ...c, lastMessage: { messageId: message._id, text: message.content, sentAt: message.createdAt } }
             : c,
-        ),
-      );
+        );
+        // If the conversation isn't in the list yet (freshly created), re-fetch to get it
+        if (!exists) qc.invalidateQueries({ queryKey: ['conversations'] });
+        return updated;
+      });
     },
   });
 

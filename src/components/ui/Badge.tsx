@@ -57,8 +57,8 @@ export function jobStatusBadge(status: string) {
 export function bidStatusBadge(status: string) {
   const map: Record<string, { variant: Variant; label: string }> = {
     pending:   { variant: 'warning', label: 'Pending' },
-    accepted:  { variant: 'success', label: 'Accepted' },
-    rejected:  { variant: 'danger',  label: 'Rejected' },
+    accepted:  { variant: 'success', label: 'Assigned' },
+    rejected:  { variant: 'danger',  label: 'Not Selected' },
     withdrawn: { variant: 'neutral', label: 'Withdrawn' },
   };
   const { variant, label } = map[status] ?? { variant: 'neutral', label: status };
