@@ -14,27 +14,56 @@ import { profileApi } from '../api/profile.api';
 import { servicesApi } from '../api/services.api';
 import { useAuthStore } from '../store/auth.store';
 
-// ─── Hero background images — African workers across trades ──────────────────
+// ─── Hero background slideshow — African workers across trades ───────────────
+// Using Unsplash photos of Black African professionals in various skilled trades
 const HERO_SLIDES = [
   {
-    url: 'https://images.unsplash.com/photo-1581092160562-40aa08e12f1a?w=1920&q=85&auto=format&fit=crop',
-    label: 'Auto mechanic at work',
+    url: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=1920&q=85&auto=format&fit=crop',
+    label: 'Auto mechanic',
   },
   {
-    url: 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=1920&q=85&auto=format&fit=crop',
-    label: 'Hairdresser styling hair',
+    url: 'https://images.unsplash.com/photo-1520038410233-7141be7e6f97?w=1920&q=85&auto=format&fit=crop',
+    label: 'Hairdresser',
   },
   {
-    url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=85&auto=format&fit=crop',
-    label: 'Carpenter crafting wood',
+    url: 'https://images.unsplash.com/photo-1607400201889-565b1ee75f8e?w=1920&q=85&auto=format&fit=crop',
+    label: 'Carpenter',
   },
   {
     url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=85&auto=format&fit=crop',
-    label: 'Electrician wiring a panel',
+    label: 'Tailor',
   },
   {
-    url: 'https://images.unsplash.com/photo-1590579491624-f98f36d4c763?w=1920&q=85&auto=format&fit=crop',
-    label: 'Tailor sewing fabric',
+    url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=85&auto=format&fit=crop',
+    label: 'Construction worker',
+  },
+];
+
+// ─── Trade showcase cards — African workers ───────────────────────────────────
+const TRADES = [
+  {
+    title: 'Auto Mechanic',
+    url: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Hair & Beauty',
+    url: 'https://images.unsplash.com/photo-1520038410233-7141be7e6f97?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Carpentry',
+    url: 'https://images.unsplash.com/photo-1607400201889-565b1ee75f8e?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Tailoring',
+    url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Construction',
+    url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Electrical',
+    url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80&auto=format&fit=crop',
   },
 ];
 
@@ -144,13 +173,17 @@ export function HomePage() {
             Trusted by thousands across Nigeria
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-2xl"
+            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.8)' }}
+          >
             Africa's skilled artisans,
             <br className="hidden sm:block" />
             <span className="text-amber-400">one platform away</span>
           </h1>
 
-          <p className="mt-6 text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-6 text-lg sm:text-xl font-semibold text-white max-w-2xl mx-auto leading-relaxed"
+            style={{ textShadow: '0 1px 12px rgba(0,0,0,0.9)' }}
+          >
             Connect with verified local craftspeople and service professionals.
             Post a job or showcase your skills — built for Nigerian communities.
           </p>
@@ -192,7 +225,9 @@ export function HomePage() {
           </div>
 
           {/* Trust signals */}
-          <div className="mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-gray-400">
+          <div className="mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm font-bold text-white"
+            style={{ textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}
+          >
             {['No hidden fees', 'Verified providers', 'Secure payments', '24-hour support'].map((t) => (
               <span key={t} className="flex items-center gap-1.5">
                 <CheckCircle className="w-4 h-4 text-amber-400" />
@@ -204,20 +239,20 @@ export function HomePage() {
       </section>
 
       {/* ── Stats bar ────────────────────────────────────────────────────── */}
-      <section className="py-10 bg-white border-b border-gray-100">
+      <section className="py-10 bg-gray-900 border-b border-gray-800">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-3 gap-6 sm:gap-10 text-center">
             {[
-              { icon: <Briefcase className="w-5 h-5 text-amber-600" />, bg: 'bg-amber-50', value: '1,200+', label: 'Jobs posted' },
-              { icon: <Users     className="w-5 h-5 text-blue-700" />,  bg: 'bg-blue-50',  value: '500+',   label: 'Verified providers' },
-              { icon: <Star      className="w-5 h-5 text-amber-500" />, bg: 'bg-amber-50', value: '4.9/5',  label: 'Average rating' },
+              { icon: <Briefcase className="w-5 h-5 text-amber-400" />, bg: 'bg-amber-500/20', value: '1,200+', label: 'Jobs posted' },
+              { icon: <Users     className="w-5 h-5 text-blue-400" />,  bg: 'bg-blue-500/20',  value: '500+',   label: 'Verified providers' },
+              { icon: <Star      className="w-5 h-5 text-amber-400" />, bg: 'bg-amber-500/20', value: '4.9/5',  label: 'Average rating' },
             ].map((stat) => (
               <div key={stat.label} className="space-y-2">
                 <div className={`mx-auto w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center`}>
                   {stat.icon}
                 </div>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-xs sm:text-sm text-gray-500">{stat.label}</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-white">{stat.value}</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-400">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -290,12 +325,12 @@ export function HomePage() {
 
       {/* ── Service categories ────────────────────────────────────────────── */}
       {categories && categories.length > 0 && (
-        <section className="py-16 bg-white">
+        <section className="py-16 bg-gray-950">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <span className="text-xs font-bold tracking-widest uppercase text-amber-600 block mb-1">Explore</span>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Browse by category</h2>
+                <span className="text-xs font-bold tracking-widest uppercase text-amber-400 block mb-1">Explore</span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Browse by category</h2>
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -303,9 +338,9 @@ export function HomePage() {
                 <Link
                   key={cat}
                   to={`/jobs?category=${encodeURIComponent(cat)}`}
-                  className="group flex items-center gap-2 px-5 py-2.5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50 hover:shadow-sm transition-all duration-150"
+                  className="group flex items-center gap-2 px-5 py-2.5 rounded-full border border-gray-700 bg-gray-800 text-sm font-semibold text-gray-200 hover:border-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all duration-150"
                 >
-                  <Wrench className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <Wrench className="w-3.5 h-3.5 text-gray-400 group-hover:text-amber-400 transition-colors" />
                   {cat}
                 </Link>
               ))}
@@ -314,44 +349,87 @@ export function HomePage() {
         </section>
       )}
 
-      {/* ── Why SkillLink ─────────────────────────────────────────────── */}
-      <section className="relative py-20 bg-gradient-to-br from-amber-50 via-white to-blue-50 overflow-hidden">
+      {/* ── Trades showcase ──────────────────────────────────────────────── */}
+      <section className="py-16 bg-gray-900">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <span className="text-xs font-bold tracking-widest uppercase text-amber-400 block mb-2">Our artisans</span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">Skills you can hire today</h2>
+            <p className="mt-3 text-gray-400 max-w-xl mx-auto">
+              From your car engine to your haircut — trusted professionals for every job
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+            {TRADES.map((trade) => (
+              <Link
+                key={trade.title}
+                to={`/jobs?search=${encodeURIComponent(trade.title)}`}
+                className="group relative overflow-hidden rounded-2xl aspect-[4/3] block"
+              >
+                {/* Trade photo */}
+                <img
+                  src={trade.url}
+                  alt={trade.title}
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                />
+                {/* Dark gradient over photo */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                {/* Trade label */}
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <p className="text-white font-bold text-base sm:text-lg leading-tight drop-shadow">{trade.title}</p>
+                  <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-semibold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Browse jobs <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Why SkillLink ─────────────────────────────────────────────── */}
+      <section className="relative py-20 bg-blue-950 overflow-hidden">
+        <div className="absolute inset-0 text-blue-400/10 pointer-events-none">
+          <AdinkraPattern opacity={0.06} />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <span className="text-xs font-bold tracking-widest uppercase text-blue-700 block mb-1">Why us</span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">Built for Nigerian communities</h2>
+            <span className="text-xs font-bold tracking-widest uppercase text-amber-400 block mb-1">Why us</span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">Built for Nigerian communities</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
               {
-                icon: <ShieldCheck className="w-6 h-6 text-blue-700" />,
-                bg: 'bg-blue-100',
+                icon: <ShieldCheck className="w-6 h-6 text-blue-300" />,
+                bg: 'bg-blue-500/20',
                 title: 'Verified artisans',
                 desc: 'Every provider goes through identity and skill verification before they can accept work.',
               },
               {
-                icon: <Hammer className="w-6 h-6 text-amber-600" />,
-                bg: 'bg-amber-100',
+                icon: <Hammer className="w-6 h-6 text-amber-400" />,
+                bg: 'bg-amber-500/20',
                 title: 'Local expertise',
                 desc: 'Find craftspeople who understand your neighbourhood, culture, and specific needs.',
               },
               {
-                icon: <Zap className="w-6 h-6 text-green-700" />,
-                bg: 'bg-green-100',
+                icon: <Zap className="w-6 h-6 text-green-400" />,
+                bg: 'bg-green-500/20',
                 title: 'Fast connections',
                 desc: 'Real-time messaging and instant bid notifications so work starts faster.',
               },
             ].map((item) => (
               <div
                 key={item.title}
-                className="flex gap-5 p-6 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+                className="flex gap-5 p-6 rounded-2xl bg-white/8 border border-white/10 hover:bg-white/12 transition-colors"
               >
                 <div className={`w-12 h-12 rounded-xl ${item.bg} flex items-center justify-center shrink-0`}>
                   {item.icon}
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 mb-1">{item.title}</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
+                  <h3 className="font-bold text-white mb-1 text-base">{item.title}</h3>
+                  <p className="text-sm text-blue-200 leading-relaxed">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -361,17 +439,17 @@ export function HomePage() {
 
       {/* ── Recent jobs ──────────────────────────────────────────────────── */}
       {jobs.length > 0 && (
-        <section className="py-16 bg-gray-50">
+        <section className="py-16 bg-gray-900">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <span className="text-xs font-bold tracking-widest uppercase text-amber-600 block mb-1">Live board</span>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Latest jobs</h2>
-                <p className="text-sm text-gray-500 mt-1">What people need help with right now</p>
+                <span className="text-xs font-bold tracking-widest uppercase text-amber-400 block mb-1">Live board</span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Latest jobs</h2>
+                <p className="text-sm text-gray-400 mt-1">What people need help with right now</p>
               </div>
               <Link
                 to="/jobs"
-                className="flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors"
+                className="flex items-center gap-1 text-sm font-semibold text-amber-400 hover:text-amber-300 transition-colors"
               >
                 See all <ArrowRight className="w-4 h-4" />
               </Link>
@@ -386,17 +464,17 @@ export function HomePage() {
       )}
 
       {/* ── Top providers ────────────────────────────────────────────────── */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-gray-950">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <span className="text-xs font-bold tracking-widest uppercase text-blue-700 block mb-1">Featured</span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">Top providers</h2>
-              <p className="text-sm text-gray-500 mt-1">Verified and highly rated professionals</p>
+              <span className="text-xs font-bold tracking-widest uppercase text-amber-400 block mb-1">Featured</span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Top providers</h2>
+              <p className="text-sm text-gray-400 mt-1">Verified and highly rated professionals</p>
             </div>
             <Link
               to="/providers"
-              className="flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors"
+              className="flex items-center gap-1 text-sm font-semibold text-amber-400 hover:text-amber-300 transition-colors"
             >
               See all <ArrowRight className="w-4 h-4" />
             </Link>
