@@ -10,12 +10,14 @@ import { useAuthStore } from '../../store/auth.store';
 import { useLogout } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
 import { NotificationDropdown } from '../notifications/NotificationDropdown';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 
 export function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { user, isAuthenticated } = useAuthStore();
   const logout = useLogout();
   const navigate = useNavigate();
+  const unreadMessages = useUnreadMessages();
 
   const close = () => setDrawerOpen(false);
 
@@ -111,7 +113,7 @@ export function Navbar() {
                     to="/conversations"
                     className={({ isActive }) =>
                       clsx(
-                        'p-2 rounded-xl transition-all duration-150',
+                        'relative p-2 rounded-xl transition-all duration-150',
                         isActive
                           ? 'bg-blue-50 text-blue-700'
                           : 'text-gray-500 hover:bg-blue-50 hover:text-blue-700',
@@ -120,6 +122,11 @@ export function Navbar() {
                     aria-label="Messages"
                   >
                     <MessageSquare className="w-5 h-5" />
+                    {unreadMessages > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-700 text-[10px] font-bold text-white">
+                        {unreadMessages > 9 ? '9+' : unreadMessages}
+                      </span>
+                    )}
                   </NavLink>
 
                   {/* Notification bell */}
