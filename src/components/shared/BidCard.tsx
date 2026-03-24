@@ -28,8 +28,8 @@ export function BidCard({ bid, showJob = true, onAssign, isAssigning }: BidCardP
     setChatLoading(true);
     try {
       const jobId = typeof bid.jobId === 'object' ? (bid.jobId as Job)._id : bid.jobId;
-      await conversationsApi.startConversation({ recipientId: providerId, jobId });
-      navigate('/conversations');
+      const { data } = await conversationsApi.startConversation({ recipientId: providerId, jobId });
+      navigate(`/conversations?id=${data._id}`);
     } finally {
       setChatLoading(false);
     }

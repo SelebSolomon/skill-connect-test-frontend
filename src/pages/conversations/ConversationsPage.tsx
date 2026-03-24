@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { conversationsApi } from '../../api/conversations.api';
 import { messagesApi } from '../../api/messages.api';
 import { servicesApi } from '../../api/services.api';
@@ -201,15 +201,20 @@ function OfferCard({
 export function ConversationsPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const qc = useQueryClient();
   const { isConnected, joinConversation, leaveConversation, on } = useSocket();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    searchParams.get('id'),
+  );
   const [input, setInput] = useState('');
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const [localConvs, setLocalConvs] = useState<Conversation[]>([]);
   /** Mobile: show the list or the active chat panel */
-  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>(
+    searchParams.get('id') ? 'chat' : 'list',
+  );
 
   // Offer modal state (providers only)
   const [showOfferModal, setShowOfferModal] = useState(false);
