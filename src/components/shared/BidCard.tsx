@@ -1,10 +1,12 @@
-import { Link } from 'react-router-dom';
-import { DollarSign, Clock, Calendar, UserCheck } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { DollarSign, Clock, Calendar, UserCheck, User, MessageSquare } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { bidStatusBadge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { format } from 'date-fns';
-import type { Bid, Job } from '../../types';
+import type { Bid, Job, User as UserType } from '../../types';
+import { conversationsApi } from '../../api/conversations.api';
 
 interface BidCardProps {
   bid: Bid;
@@ -14,11 +16,51 @@ interface BidCardProps {
 }
 
 export function BidCard({ bid, showJob = true, onAssign, isAssigning }: BidCardProps) {
+  const navigate = useNavigate();
   const job = bid.jobId as Job | undefined;
+  const provider = typeof bid.providerId === 'object' ? (bid.providerId as UserType) : null;
+  const providerId = provider?._id ?? (bid.providerId as string);
   const canAssign = !!onAssign && bid.status === 'pending';
+  const [chatLoading, setChatLoading] = useState(false);
+
+  async function handleChat() {
+    if (!providerId) return;
+    setChatLoading(true);
+    try {
+      const jobId = typeof bid.jobId === 'object' ? (bid.jobId as Job)._id : bid.jobId;
+      await conversationsApi.startConversation({ recipientId: providerId, jobId });
+      navigate('/conversations');
+    } finally {
+      setChatLoading(false);
+    }
+  }
 
   return (
     <Card className="flex flex-col gap-4">
+      {/* Provider info row */}
+      {provider && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {provider.name?.charAt(0).toUpperCase() ?? 'P'}
+            </div>
+            <span className="text-sm font-medium text-gray-900">{provider.name}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to={`/providers/${providerId}`}>
+              <Button size="sm" variant="outline">
+                <User className="w-3.5 h-3.5" />
+                View Profile
+              </Button>
+            </Link>
+            <Button size="sm" variant="outline" loading={chatLoading} onClick={handleChat}>
+              <MessageSquare className="w-3.5 h-3.5" />
+              Chat
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           {showJob && job && typeof job === 'object' && (

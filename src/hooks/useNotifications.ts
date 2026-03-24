@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '../store/auth.store';
@@ -11,13 +11,15 @@ export function useNotifications() {
   const { accessToken, isAuthenticated } = useAuthStore();
   const queryClient = useQueryClient();
   const socketRef = useRef<Socket | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
 
-  // ─── Initial fetch ──────────────────────────────────────────────────────────
+  // ─── Initial fetch — polls every 30s when socket is down ───────────────────
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: () => notificationsApi.getAll({ page: 1, limit: 30 }),
     enabled: isAuthenticated,
     staleTime: 30_000,
+    refetchInterval: socketConnected ? false : 30_000,
   });
 
   // ─── Real-time socket ───────────────────────────────────────────────────────
@@ -33,9 +35,13 @@ export function useNotifications() {
     const socket = io(`${socketBaseUrl}/notifications`, {
       auth: { token: accessToken },
       transports: ['websocket'],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
+
+    socket.on('connect', () => setSocketConnected(true));
+    socket.on('disconnect', () => setSocketConnected(false));
+    socket.on('connect_error', () => setSocketConnected(false));
 
     /** New notification pushed from server → prepend to cache */
     socket.on('notification:new', (notification: Notification) => {
@@ -67,6 +73,7 @@ export function useNotifications() {
     return () => {
       socket.disconnect();
       socketRef.current = null;
+      setSocketConnected(false);
     };
   }, [accessToken, isAuthenticated, queryClient]);
 

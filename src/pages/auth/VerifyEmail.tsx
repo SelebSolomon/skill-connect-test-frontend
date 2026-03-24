@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Mail, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -9,7 +9,9 @@ import { getErrorMessage } from '../../hooks/useErrorMessage';
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const navigate = useNavigate();
   const [status, setStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
+  const [countdown, setCountdown] = useState(5);
   const [errorMsg, setErrorMsg] = useState('');
   const [email, setEmail] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
@@ -26,6 +28,18 @@ export function VerifyEmailPage() {
         });
     }
   }, [token]);
+
+  // Auto-redirect to login 5 seconds after success
+  useEffect(() => {
+    if (status !== 'success') return;
+    const interval = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) { navigate('/login'); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [status, navigate]);
 
   const handleResend = async () => {
     if (!email) return;
@@ -58,9 +72,12 @@ export function VerifyEmailPage() {
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <h2 className="text-xl font-semibold text-gray-900">Email verified!</h2>
-              <p className="text-gray-500">Your email has been verified. You can now sign in.</p>
+              <p className="text-gray-500">
+                Your email has been verified. Redirecting to login in{' '}
+                <span className="font-bold text-blue-700">{countdown}s</span>…
+              </p>
               <Link to="/login">
-                <Button fullWidth>Go to Login</Button>
+                <Button fullWidth>Go to Login now</Button>
               </Link>
             </div>
           )}
