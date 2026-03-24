@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import {
   ArrowRight, Briefcase, Users, Star, Search,
   CheckCircle, Clock, ShieldCheck, Hammer, Wrench, Zap,
@@ -12,6 +13,30 @@ import { jobsApi } from '../api/jobs.api';
 import { profileApi } from '../api/profile.api';
 import { servicesApi } from '../api/services.api';
 import { useAuthStore } from '../store/auth.store';
+
+// ─── Hero background images — African workers across trades ──────────────────
+const HERO_SLIDES = [
+  {
+    url: 'https://images.unsplash.com/photo-1581092160562-40aa08e12f1a?w=1920&q=85&auto=format&fit=crop',
+    label: 'Auto mechanic at work',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=1920&q=85&auto=format&fit=crop',
+    label: 'Hairdresser styling hair',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=85&auto=format&fit=crop',
+    label: 'Carpenter crafting wood',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=85&auto=format&fit=crop',
+    label: 'Electrician wiring a panel',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1590579491624-f98f36d4c763?w=1920&q=85&auto=format&fit=crop',
+    label: 'Tailor sewing fabric',
+  },
+];
 
 // ─── Adinkra-inspired SVG pattern used in section backgrounds ─────────────────
 function AdinkraPattern({ opacity = 0.06 }: { opacity?: number }) {
@@ -41,6 +66,21 @@ function AdinkraPattern({ opacity = 0.06 }: { opacity?: number }) {
 export function HomePage() {
   const { isAuthenticated, user } = useAuthStore();
 
+  // ── Hero background slideshow ──────────────────────────────────────────────
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [fadeIn, setFadeIn] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFadeIn(false);
+      setTimeout(() => {
+        setSlideIndex((i) => (i + 1) % HERO_SLIDES.length);
+        setFadeIn(true);
+      }, 600);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   const { data: jobsData } = useQuery({
     queryKey: ['jobs', { limit: 6 }],
     queryFn: () => jobsApi.getJobs({ limit: 6 }),
@@ -63,14 +103,27 @@ export function HomePage() {
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden min-h-[620px] flex items-center py-24 sm:py-32">
-        {/* African artisan background photo */}
+        {/* Sliding background — African workers across trades */}
         <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-105 transition-opacity duration-700"
           style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1572949645841-fd4b2e84db77?w=1920&q=85&auto=format&fit=crop')",
+            backgroundImage: `url('${HERO_SLIDES[slideIndex].url}')`,
+            opacity: fadeIn ? 1 : 0,
           }}
+          aria-label={HERO_SLIDES[slideIndex].label}
         />
+
+        {/* Slide dots */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          {HERO_SLIDES.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => { setFadeIn(false); setTimeout(() => { setSlideIndex(i); setFadeIn(true); }, 300); }}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${i === slideIndex ? 'bg-amber-400 w-5' : 'bg-white/40 hover:bg-white/70'}`}
+              aria-label={`Slide ${i + 1}`}
+            />
+          ))}
+        </div>
         {/* Rich deep overlay — earth + night */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-950/92 via-amber-950/80 to-gray-900/90" />
 

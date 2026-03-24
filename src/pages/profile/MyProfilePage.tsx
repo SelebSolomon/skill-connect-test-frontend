@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { MapPin, Star, DollarSign, CheckCircle, Pencil, Plus } from 'lucide-react';
+import { MapPin, Star, DollarSign, CheckCircle, Pencil, Plus, Camera } from 'lucide-react';
 import { profileApi } from '../../api/profile.api';
 import { Spinner } from '../../components/ui/Spinner';
 import { Badge } from '../../components/ui/Badge';
@@ -9,10 +9,30 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
 export function MyProfilePage() {
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoError, setPhotoError] = useState('');
+
   const { data: profile, isLoading } = useQuery({
     queryKey: ['my-profile'],
     queryFn: profileApi.getMyProfile,
   });
+
+  const updatePhotoMutation = useMutation({
+    mutationFn: (file: File) => profileApi.updateProfilePhoto(file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-profile'] });
+      setPhotoError('');
+    },
+    onError: () => setPhotoError('Failed to update photo. Try again.'),
+  });
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setPhotoError('Photo must be under 5 MB'); return; }
+    updatePhotoMutation.mutate(file);
+  };
 
   if (isLoading) return <Spinner fullPage />;
 
@@ -46,16 +66,55 @@ export function MyProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="space-y-4">
           <Card className="text-center">
-            {profile.photoUrl ? (
-              <img
-                src={profile.photoUrl}
-                alt="Profile"
-                className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-white shadow-md"
+            {/* Clickable avatar with camera overlay */}
+            <div className="relative w-24 h-24 mx-auto group">
+              {profile.photoUrl ? (
+                <img
+                  src={profile.photoUrl}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-white text-3xl font-bold">
+                  {typeof profile.userId === 'object' ? (profile.userId as any).name?.charAt(0).toUpperCase() : 'P'}
+                </div>
+              )}
+
+              {/* Camera overlay button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={updatePhotoMutation.isPending}
+                className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-wait"
+                title="Change photo"
+              >
+                {updatePhotoMutation.isPending ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                ) : (
+                  <Camera className="w-6 h-6 text-white" />
+                )}
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
               />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-white text-3xl font-bold mx-auto">
-                P
-              </div>
+            </div>
+
+            {/* Tap hint — always visible on mobile, hidden on desktop (hover handles it) */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={updatePhotoMutation.isPending}
+              className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mx-auto md:hidden"
+            >
+              <Camera className="w-3 h-3" />
+              {updatePhotoMutation.isPending ? 'Uploading…' : profile.photoUrl ? 'Change photo' : 'Add photo'}
+            </button>
+
+            {photoError && (
+              <p className="text-xs text-red-500 mt-1">{photoError}</p>
             )}
             <div className="mt-4">
               {profile.verified && (
