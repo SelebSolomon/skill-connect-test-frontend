@@ -217,6 +217,7 @@ export function ConversationsPage() {
     searchParams.get('id') ? 'chat' : 'list',
   );
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Offer modal state (providers only)
   const [showOfferModal, setShowOfferModal] = useState(false);
@@ -359,8 +360,10 @@ export function ConversationsPage() {
       }
       qc.invalidateQueries({ queryKey: ['conversations'] });
     },
-    onError: () => {
+    onError: (err: any) => {
       setConfirmDeleteId(null);
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Failed to delete conversation';
+      setDeleteError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     },
   });
 
@@ -499,6 +502,15 @@ export function ConversationsPage() {
               }
             </div>
           </div>
+
+          {deleteError && (
+            <div className="mx-3 mt-2 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-700">
+              <span className="flex-1">{deleteError}</span>
+              <button onClick={() => setDeleteError(null)} className="text-red-400 hover:text-red-600 shrink-0">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {localConvs.length === 0 ? (
             <div className="flex-1 flex items-center justify-center p-8 text-center">
