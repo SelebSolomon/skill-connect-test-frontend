@@ -4,6 +4,7 @@ import {
   MessageSquare,
   Send,
   Archive,
+  Trash2,
   CheckCheck,
   Wifi,
   WifiOff,
@@ -346,6 +347,18 @@ export function ConversationsPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => conversationsApi.deleteConversation(id),
+    onSuccess: (_, id) => {
+      setLocalConvs((prev) => prev.filter((c) => c._id !== id));
+      if (selectedId === id) {
+        setSelectedId(null);
+        setMobileView('list');
+      }
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+
   const markReadMutation = useMutation({
     mutationFn: conversationsApi.markAllAsRead,
     onSuccess: (_, id) => {
@@ -549,17 +562,31 @@ export function ConversationsPage() {
                       )}
                     </div>
 
-                    {/* Archive on hover */}
-                    <button
-                      className="absolute right-2 top-3 hidden group-hover:flex p-1 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        archiveMutation.mutate({ id: conv._id, archive: true });
-                      }}
-                      title="Archive"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Actions on hover */}
+                    <div className="absolute right-2 top-3 hidden group-hover:flex items-center gap-0.5">
+                      <button
+                        className="p-1 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          archiveMutation.mutate({ id: conv._id, archive: true });
+                        }}
+                        title="Archive"
+                      >
+                        <Archive className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm('Delete this conversation? This cannot be undone.')) {
+                            deleteMutation.mutate(conv._id);
+                          }
+                        }}
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -623,6 +650,18 @@ export function ConversationsPage() {
                     title="Archive conversation"
                   >
                     <Archive className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Delete this conversation? This cannot be undone.')) {
+                        deleteMutation.mutate(selectedId);
+                      }
+                    }}
+                    disabled={deleteMutation.isPending}
+                    className="p-1.5 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    title="Delete conversation"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>

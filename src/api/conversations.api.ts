@@ -26,4 +26,8 @@ export const conversationsApi = {
   /** Reset unread count to 0 for the current user */
   markAllAsRead: (id: string): Promise<{ conversationId: string; unread: number }> =>
     api.patch(`/conversations/${id}/read`).then((r) => r.data),
+
+  /** Permanently delete a conversation and all its messages */
+  deleteConversation: (id: string): Promise<{ message: string }> =>
+    api.delete(`/conversations/${id}`).then((r) => r.data),
 };
