@@ -6,11 +6,13 @@ export const walletApi = {
   getWallet: (): Promise<WalletInfo> =>
     api.get<WalletInfo>('/wallet').then((r) => r.data),
 
-  /** Submit a deposit request with an optional proof image */
-  requestDeposit: (formData: FormData): Promise<WalletTransaction> =>
-    api.post<WalletTransaction>('/wallet/deposit', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then((r) => r.data),
+  /** Initialize a Paystack payment for a deposit */
+  initializeDeposit: (amount: number): Promise<{ paymentUrl: string; reference: string }> =>
+    api.post<{ paymentUrl: string; reference: string }>('/wallet/deposit/initialize', { amount }).then((r) => r.data),
+
+  /** Verify a completed Paystack deposit and credit wallet */
+  verifyDeposit: (reference: string): Promise<WalletTransaction> =>
+    api.get<WalletTransaction>('/wallet/deposit/verify', { params: { reference } }).then((r) => r.data),
 
   /** Paginated wallet transaction history */
   getHistory: (params?: {

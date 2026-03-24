@@ -272,8 +272,8 @@ export type TransactionStatus = 'pending' | 'paid' | 'waived';
 export interface Transaction {
   _id: string;
   jobId: string | { _id: string; title: string; status: string };
-  providerId: string | { _id: string; name: string };
-  clientId: string | { _id: string; name: string };
+  providerId: string | { _id: string; name: string; email: string };
+  clientId: string | { _id: string; name: string; email: string };
   agreedPrice: number;
   commissionRate: number;
   commissionAmount: number;

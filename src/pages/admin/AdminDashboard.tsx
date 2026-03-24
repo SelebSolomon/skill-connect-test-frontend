@@ -4,9 +4,12 @@ import { format } from 'date-fns';
 import {
   Users, Briefcase, DollarSign, Flag, ShieldCheck, ShieldOff,
   Ban, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Wrench, Plus, Pencil, Trash2, X,
+  Receipt, ExternalLink,
 } from 'lucide-react';
 import { adminApi } from '../../api/admin.api';
 import { servicesApi } from '../../api/services.api';
+import { transactionsApi } from '../../api/transactions.api';
+import type { Transaction } from '../../types';
 import type { Service } from '../../types';
 import { Spinner } from '../../components/ui/Spinner';
 import { Card } from '../../components/ui/Card';
@@ -535,8 +538,275 @@ function ServicesTab() {
   );
 }
 
+// ─── Transactions tab ──────────────────────────────────────────────────────────
+function TransactionsTab() {
+  const qc = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [payRef, setPayRef] = useState('');
+  const [waiveReason, setWaiveReason] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-transactions', { statusFilter, page }],
+    queryFn: () => transactionsApi.getAll({ status: statusFilter || undefined, page, limit: 15 }),
+  });
+
+  const { data: summary } = useQuery({
+    queryKey: ['admin-tx-summary'],
+    queryFn: transactionsApi.getSummary,
+  });
+
+  const markPaidMutation = useMutation({
+    mutationFn: ({ id, ref }: { id: string; ref?: string }) => transactionsApi.markAsPaid(id, ref),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-transactions'] });
+      qc.invalidateQueries({ queryKey: ['admin-tx-summary'] });
+      setExpandedId(null);
+      setPayRef('');
+    },
+  });
+
+  const waiveMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => transactionsApi.waive(id, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-transactions'] });
+      qc.invalidateQueries({ queryKey: ['admin-tx-summary'] });
+      setExpandedId(null);
+      setWaiveReason('');
+    },
+  });
+
+  const statusBadge = (s: string) => {
+    const map: Record<string, string> = {
+      pending: 'bg-amber-50 text-amber-700',
+      paid:    'bg-green-50 text-green-700',
+      waived:  'bg-gray-100 text-gray-500',
+    };
+    return (
+      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${map[s] ?? 'bg-gray-100 text-gray-500'}`}>
+        {s}
+      </span>
+    );
+  };
+
+  function txProvider(t: Transaction) {
+    return typeof t.providerId === 'object' ? t.providerId : null;
+  }
+  function txClient(t: Transaction) {
+    return typeof t.clientId === 'object' ? t.clientId : null;
+  }
+  function txJob(t: Transaction) {
+    return typeof t.jobId === 'object' ? t.jobId : null;
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Summary strip */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Total GMV', value: summary.totalGMV },
+            { label: 'Total Commission', value: summary.totalCommission },
+            { label: 'Pending', value: summary.pendingCommission },
+            { label: 'Paid', value: summary.paidCommission },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-xl border border-gray-100 bg-white px-4 py-3">
+              <p className="text-xs text-gray-400">{label}</p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5">₦{value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filter */}
+      <div className="flex gap-3">
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+        >
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
+          <option value="waived">Waived</option>
+        </select>
+        <span className="self-center text-sm text-gray-400">{data?.total ?? 0} transactions</span>
+      </div>
+
+      {isLoading ? <Spinner /> : (
+        <div className="space-y-3">
+          {data?.transactions.length === 0 && (
+            <p className="text-center py-12 text-gray-400">No transactions found.</p>
+          )}
+
+          {data?.transactions.map((t) => {
+            const provider = txProvider(t);
+            const client = txClient(t);
+            const job = txJob(t);
+            const isExpanded = expandedId === t._id;
+
+            return (
+              <Card key={t._id}>
+                {/* Row summary */}
+                <div
+                  className="flex items-start justify-between gap-4 cursor-pointer"
+                  onClick={() => { setExpandedId(isExpanded ? null : t._id); setPayRef(''); setWaiveReason(''); }}
+                >
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {statusBadge(t.status)}
+                      <span className="text-xs text-gray-400">
+                        {t.createdAt ? format(new Date(t.createdAt), 'MMM d, yyyy · h:mm a') : '—'}
+                      </span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {provider?.name ?? 'Provider'} → Commission due: ₦{t.commissionAmount.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Job: <span className="font-medium text-gray-700">{job?.title ?? '—'}</span>
+                      &nbsp;·&nbsp;Agreed price: ₦{t.agreedPrice.toLocaleString()}
+                      &nbsp;·&nbsp;Rate: {(t.commissionRate * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                  {isExpanded
+                    ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                    : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
+                </div>
+
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+                    {/* Parties */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="rounded-xl bg-gray-50 px-4 py-3 space-y-1">
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Provider</p>
+                        <p className="text-sm font-semibold text-gray-900">{provider?.name ?? '—'}</p>
+                        <p className="text-xs text-gray-500">{provider?.email ?? '—'}</p>
+                      </div>
+                      <div className="rounded-xl bg-gray-50 px-4 py-3 space-y-1">
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Client</p>
+                        <p className="text-sm font-semibold text-gray-900">{client?.name ?? '—'}</p>
+                        <p className="text-xs text-gray-500">{client?.email ?? '—'}</p>
+                      </div>
+                    </div>
+
+                    {/* Job & financials */}
+                    <div className="rounded-xl bg-gray-50 px-4 py-3 space-y-2">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Job Details</p>
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                        <div>
+                          <span className="text-gray-400 text-xs">Title</span>
+                          <p className="font-medium text-gray-900">{job?.title ?? '—'}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 text-xs">Agreed Price</span>
+                          <p className="font-bold text-gray-900">₦{t.agreedPrice.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 text-xs">Commission ({(t.commissionRate * 100).toFixed(0)}%)</span>
+                          <p className="font-bold text-blue-700">₦{t.commissionAmount.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      {job?._id && (
+                        <a
+                          href={`/jobs/${job._id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-700 hover:underline mt-1"
+                        >
+                          <ExternalLink className="w-3 h-3" /> View Job
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Payment info */}
+                    {t.status === 'paid' && (
+                      <div className="rounded-xl bg-green-50 border border-green-100 px-4 py-3 space-y-1">
+                        <p className="text-[11px] font-semibold text-green-700 uppercase tracking-wide">Payment Confirmed</p>
+                        {t.paymentReference && (
+                          <p className="text-xs text-gray-700">Reference: <span className="font-mono font-medium">{t.paymentReference}</span></p>
+                        )}
+                        {t.paidAt && (
+                          <p className="text-xs text-gray-500">Paid on {format(new Date(t.paidAt), 'MMM d, yyyy · h:mm a')}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {t.status === 'waived' && (
+                      <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 space-y-1">
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Waived</p>
+                        {t.waivedReason && <p className="text-xs text-gray-600">Reason: {t.waivedReason}</p>}
+                        {t.waivedAt && <p className="text-xs text-gray-400">{format(new Date(t.waivedAt), 'MMM d, yyyy')}</p>}
+                      </div>
+                    )}
+
+                    {/* Pending actions */}
+                    {t.status === 'pending' && (
+                      <div className="space-y-3">
+                        {/* Mark as paid */}
+                        <div className="rounded-xl border border-gray-200 px-4 py-3 space-y-2">
+                          <p className="text-xs font-semibold text-gray-600">Mark as Paid</p>
+                          <input
+                            type="text"
+                            value={payRef}
+                            onChange={(e) => setPayRef(e.target.value)}
+                            placeholder="Payment reference (optional)"
+                            className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          />
+                          <Button
+                            size="sm"
+                            loading={markPaidMutation.isPending}
+                            onClick={() => markPaidMutation.mutate({ id: t._id, ref: payRef || undefined })}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Confirm Payment
+                          </Button>
+                        </div>
+
+                        {/* Waive */}
+                        <div className="rounded-xl border border-gray-200 px-4 py-3 space-y-2">
+                          <p className="text-xs font-semibold text-gray-600">Waive Commission</p>
+                          <input
+                            type="text"
+                            value={waiveReason}
+                            onChange={(e) => setWaiveReason(e.target.value)}
+                            placeholder="Reason for waiving (optional)"
+                            className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            loading={waiveMutation.isPending}
+                            onClick={() => waiveMutation.mutate({ id: t._id, reason: waiveReason || undefined })}
+                          >
+                            Waive
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+
+          {data && data.totalPages > 1 && (
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <span>Page {data.page} of {data.totalPages}</span>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+                <Button variant="ghost" size="sm" disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
-type Tab = 'users' | 'reports' | 'deposits' | 'services';
+type Tab = 'users' | 'reports' | 'deposits' | 'services' | 'transactions';
 
 export function AdminDashboard() {
   const [tab, setTab] = useState<Tab>('users');
@@ -551,6 +821,7 @@ export function AdminDashboard() {
     { id: 'users', label: 'Users' },
     { id: 'reports', label: 'Reports' },
     { id: 'deposits', label: 'Deposits' },
+    { id: 'transactions', label: 'Transactions' },
     { id: 'services', label: 'Services' },
   ];
 
@@ -589,6 +860,7 @@ export function AdminDashboard() {
       {tab === 'users' && <UsersTab />}
       {tab === 'reports' && <ReportsTab />}
       {tab === 'deposits' && <DepositsTab />}
+      {tab === 'transactions' && <TransactionsTab />}
       {tab === 'services' && <ServicesTab />}
     </div>
   );
