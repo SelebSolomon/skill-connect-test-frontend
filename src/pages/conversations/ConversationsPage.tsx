@@ -216,6 +216,7 @@ export function ConversationsPage() {
   const [mobileView, setMobileView] = useState<'list' | 'chat'>(
     searchParams.get('id') ? 'chat' : 'list',
   );
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Offer modal state (providers only)
   const [showOfferModal, setShowOfferModal] = useState(false);
@@ -350,12 +351,16 @@ export function ConversationsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => conversationsApi.deleteConversation(id),
     onSuccess: (_, id) => {
+      setConfirmDeleteId(null);
       setLocalConvs((prev) => prev.filter((c) => c._id !== id));
       if (selectedId === id) {
         setSelectedId(null);
         setMobileView('list');
       }
       qc.invalidateQueries({ queryKey: ['conversations'] });
+    },
+    onError: () => {
+      setConfirmDeleteId(null);
     },
   });
 
@@ -520,7 +525,7 @@ export function ConversationsPage() {
                   >
                     <Avatar participant={other} size="md" />
 
-                    <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <p
                           className={clsx(
@@ -562,31 +567,50 @@ export function ConversationsPage() {
                       )}
                     </div>
 
-                    {/* Actions on hover */}
-                    <div className="absolute right-2 top-3 hidden group-hover:flex items-center gap-0.5">
-                      <button
-                        className="p-1 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          archiveMutation.mutate({ id: conv._id, archive: true });
-                        }}
-                        title="Archive"
+                    {/* Actions — always visible on mobile (touch), hover-only on desktop */}
+                    {confirmDeleteId === conv._id ? (
+                      <div
+                        className="flex items-center gap-1 shrink-0 ml-1"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Archive className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm('Delete this conversation? This cannot be undone.')) {
-                            deleteMutation.mutate(conv._id);
-                          }
-                        }}
-                        title="Delete"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        <button
+                          className="text-[11px] font-medium text-gray-500 hover:text-gray-700 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          disabled={deleteMutation.isPending}
+                          className="text-[11px] font-semibold text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-md transition-colors disabled:opacity-50"
+                          onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(conv._id); }}
+                        >
+                          {deleteMutation.isPending ? '…' : 'Delete'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex md:hidden md:group-hover:flex items-center gap-0.5 shrink-0 ml-1">
+                        <button
+                          className="p-1.5 rounded-md text-gray-300 hover:text-gray-500 active:bg-gray-100 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            archiveMutation.mutate({ id: conv._id, archive: true });
+                          }}
+                          title="Archive"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                        <button
+                          className="p-1.5 rounded-md text-gray-300 hover:text-red-500 active:bg-red-50 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(conv._id);
+                          }}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -635,34 +659,50 @@ export function ConversationsPage() {
                 </div>
 
                 <div className="flex items-center gap-1">
-                  {(selectedConv?.unread ?? 0) > 0 && (
-                    <button
-                      onClick={() => markReadMutation.mutate(selectedId)}
-                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-700 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors"
-                    >
-                      <CheckCheck className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Mark read</span>
-                    </button>
+                  {confirmDeleteId === selectedId ? (
+                    <>
+                      <span className="text-xs text-gray-500 mr-1 hidden sm:inline">Delete chat?</span>
+                      <button
+                        className="text-xs font-medium text-gray-500 hover:text-gray-700 px-2.5 py-1 rounded-lg hover:bg-gray-100 transition-colors"
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={deleteMutation.isPending}
+                        className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                        onClick={() => deleteMutation.mutate(selectedId)}
+                      >
+                        {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {(selectedConv?.unread ?? 0) > 0 && (
+                        <button
+                          onClick={() => markReadMutation.mutate(selectedId)}
+                          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-700 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors"
+                        >
+                          <CheckCheck className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Mark read</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => archiveMutation.mutate({ id: selectedId, archive: true })}
+                        className="p-1.5 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+                        title="Archive conversation"
+                      >
+                        <Archive className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(selectedId)}
+                        className="p-1.5 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="Delete conversation"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
                   )}
-                  <button
-                    onClick={() => archiveMutation.mutate({ id: selectedId, archive: true })}
-                    className="p-1.5 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
-                    title="Archive conversation"
-                  >
-                    <Archive className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Delete this conversation? This cannot be undone.')) {
-                        deleteMutation.mutate(selectedId);
-                      }
-                    }}
-                    disabled={deleteMutation.isPending}
-                    className="p-1.5 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                    title="Delete conversation"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
 

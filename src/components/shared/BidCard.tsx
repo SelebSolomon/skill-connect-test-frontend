@@ -39,18 +39,19 @@ export function BidCard({ bid, showJob = true, onAssign, isAssigning }: BidCardP
     <Card className="flex flex-col gap-4">
       {/* Provider info row */}
       {provider && (
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-white text-xs font-bold shrink-0">
               {provider.name?.charAt(0).toUpperCase() ?? 'P'}
             </div>
-            <span className="text-sm font-medium text-gray-900">{provider.name}</span>
+            <span className="text-sm font-medium text-gray-900 truncate">{provider.name}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Link to={`/providers/${providerId}`}>
               <Button size="sm" variant="outline">
                 <User className="w-3.5 h-3.5" />
-                View Profile
+                <span className="hidden xs:inline">View Profile</span>
+                <span className="xs:hidden">Profile</span>
               </Button>
             </Link>
             <Button size="sm" variant="outline" loading={chatLoading} onClick={handleChat}>
