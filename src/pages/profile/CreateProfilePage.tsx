@@ -145,7 +145,9 @@ export function CreateProfilePage() {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) { setPhoto(file); setPhotoPreview(URL.createObjectURL(file)); }
+                  if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) { alert('Photo must be under 5 MB'); return; }
+                  setPhoto(file); setPhotoPreview(URL.createObjectURL(file));
                 }}
               />
             </label>

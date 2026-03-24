@@ -164,11 +164,24 @@ export interface Attachment {
   duration?: number;
 }
 
+export type OfferStatus = 'pending' | 'accepted' | 'declined';
+
+export interface MessageOffer {
+  price: number;
+  description: string;
+  deliveryDays: number;
+  serviceId: string;
+  status: OfferStatus;
+  jobId?: string;
+}
+
 export interface Message {
   _id: string;
   conversationId: string;
   senderId: string | User;
+  type?: 'text' | 'offer';
   content: string;
+  offer?: MessageOffer;
   attachments: Attachment[];
   readBy: string[];
   createdAt: string;

@@ -33,4 +33,11 @@ export const jobsApi = {
 
   completeJob: (jobId: string): Promise<Job> =>
     api.patch(`/jobs/${jobId}/complete`).then((r) => r.data),
+
+  updateMilestoneStatus: (
+    jobId: string,
+    milestoneId: string,
+    status: 'pending' | 'completed' | 'paid',
+  ): Promise<Job> =>
+    api.patch(`/jobs/${jobId}/milestones/${milestoneId}`, { status }).then((r) => r.data),
 };

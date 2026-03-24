@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MapPin, DollarSign, Calendar, ArrowLeft, Pencil, Trash2, User, Star } from 'lucide-react';
+import { MapPin, DollarSign, Calendar, ArrowLeft, Pencil, Trash2, User, Star, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { jobsApi } from '../../api/jobs.api';
 import { bidsApi } from '../../api/bids.api';
@@ -95,6 +95,12 @@ export function JobDetailPage() {
     onError: (err) => setBidError(getErrorMessage(err)),
   });
 
+  const milestoneMutation = useMutation({
+    mutationFn: ({ milestoneId, status }: { milestoneId: string; status: 'pending' | 'completed' | 'paid' }) =>
+      jobsApi.updateMilestoneStatus(id!, milestoneId, status),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['job', id] }),
+  });
+
   if (isLoading) return <Spinner fullPage />;
   if (!job) return (
     <div className="text-center py-20">
@@ -122,14 +128,14 @@ export function JobDetailPage() {
         Back
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Main */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
           {job.imageUrl && (
             <img
               src={job.imageUrl}
               alt={job.title}
-              className="w-full h-64 object-cover rounded-2xl"
+              className="w-full h-48 sm:h-64 object-cover rounded-2xl"
             />
           )}
 
@@ -181,17 +187,46 @@ export function JobDetailPage() {
             <Card>
               <h3 className="font-semibold text-gray-900 mb-4">Milestones</h3>
               <div className="space-y-3">
-                {job.milestones.map((m, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
-                    <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                      {i + 1}
+                {job.milestones.map((m, i) => {
+                  const milestoneId = m._id ?? '';
+                  const isPending = m.status === 'pending';
+                  const isCompleted = m.status === 'completed';
+                  const isPaid = m.status === 'paid';
+                  // Provider marks pending → completed; client marks completed → paid
+                  const canMarkComplete = user?.role === 'provider' && isPending && job.status === 'in_progress';
+                  const canMarkPaid = isOwner && isCompleted && job.status === 'in_progress';
+                  return (
+                    <div key={m._id ?? i} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+                      <div className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 ${isPaid ? 'bg-green-100 text-green-800' : isCompleted ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-600'}`}>
+                        {isPaid || isCompleted ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-gray-900 text-sm">{m.title}</p>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isPaid ? 'bg-green-100 text-green-700' : isCompleted ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {m.status}
+                          </span>
+                          {m.amount && (
+                            <span className="text-xs text-gray-400">₦{m.amount.toLocaleString()}</span>
+                          )}
+                        </div>
+                        {m.description && <p className="text-sm text-gray-500 mt-0.5">{m.description}</p>}
+                        {(canMarkComplete || canMarkPaid) && milestoneId && (
+                          <button
+                            disabled={milestoneMutation.isPending}
+                            onClick={() => milestoneMutation.mutate({
+                              milestoneId,
+                              status: canMarkComplete ? 'completed' : 'paid',
+                            })}
+                            className="mt-2 text-xs font-medium px-3 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                          >
+                            {canMarkComplete ? 'Mark Complete' : 'Mark Paid'}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{m.title}</p>
-                      {m.description && <p className="text-sm text-gray-500">{m.description}</p>}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           )}
@@ -218,7 +253,7 @@ export function JobDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4">
+        <div className="space-y-4 order-1 lg:order-2">
           {/* Client info */}
           <Card>
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">

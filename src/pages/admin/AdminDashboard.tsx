@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import {
   Users, Briefcase, DollarSign, Flag, ShieldCheck, ShieldOff,
-  Ban, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp,
+  Ban, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Wrench, Plus, Pencil, Trash2, X,
 } from 'lucide-react';
 import { adminApi } from '../../api/admin.api';
+import { servicesApi } from '../../api/services.api';
+import type { Service } from '../../types';
 import { Spinner } from '../../components/ui/Spinner';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -77,7 +79,8 @@ function UsersTab() {
 
       {isLoading ? <Spinner /> : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-gray-100">
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-100">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
@@ -90,7 +93,7 @@ function UsersTab() {
                 {data?.users.map((u: AdminUser) => (
                   <tr key={u._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                    <td className="px-4 py-3 text-gray-500 max-w-[160px] truncate">{u.email}</td>
                     <td className="px-4 py-3">
                       <span className="capitalize text-xs font-medium bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full">
                         {u.roleName}
@@ -132,6 +135,51 @@ function UsersTab() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile card list */}
+          <div className="md:hidden space-y-3">
+            {data?.users.map((u: AdminUser) => (
+              <div key={u._id} className="rounded-xl border border-gray-100 bg-white p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{u.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="capitalize text-xs font-medium bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full">{u.roleName}</span>
+                    {u.banned ? (
+                      <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Banned</span>
+                    ) : (
+                      <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Active</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span>Joined {u.createdAt ? format(new Date(u.createdAt), 'MMM d, yyyy') : '—'}</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => banMutation.mutate({ userId: u._id, banned: !u.banned })}
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                        u.banned
+                          ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                          : 'bg-red-50 text-red-600 hover:bg-red-100'
+                      }`}
+                    >
+                      {u.banned ? 'Unban' : 'Ban'}
+                    </button>
+                    {u.roleName === 'provider' && (
+                      <button
+                        onClick={() => verifyMutation.mutate({ userId: u._id, verified: true })}
+                        className="px-2.5 py-1 rounded-lg font-medium bg-blue-50 text-blue-800 hover:bg-blue-100 transition-colors"
+                      >
+                        Verify
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Pagination */}
@@ -320,8 +368,175 @@ function DepositsTab() {
   );
 }
 
+// ─── Services tab ──────────────────────────────────────────────────────────────
+function ServicesTab() {
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [formError, setFormError] = useState('');
+
+  const { data: services = [], isLoading } = useQuery<Service[]>({
+    queryKey: ['admin-services'],
+    queryFn: servicesApi.getAllAdmin,
+  });
+
+  const openCreate = () => {
+    setEditingService(null);
+    setName(''); setCategory(''); setDescription(''); setFormError('');
+    setShowForm(true);
+  };
+
+  const openEdit = (s: Service) => {
+    setEditingService(s);
+    setName(s.name); setCategory(s.category); setDescription(s.description ?? ''); setFormError('');
+    setShowForm(true);
+  };
+
+  const closeForm = () => { setShowForm(false); setFormError(''); };
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      editingService
+        ? servicesApi.update(editingService._id, { name, category, description: description || undefined })
+        : servicesApi.create({ name, category, description: description || undefined }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-services'] });
+      qc.invalidateQueries({ queryKey: ['services'] });
+      closeForm();
+    },
+    onError: (err: any) => setFormError(err?.response?.data?.message ?? 'Failed to save'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => servicesApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-services'] });
+      qc.invalidateQueries({ queryKey: ['services'] });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (s: Service) => servicesApi.update(s._id, { isActive: !s.isActive }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-services'] }),
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: servicesApi.seed,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-services'] }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-gray-500">{services.length} service{services.length !== 1 ? 's' : ''}</p>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" loading={seedMutation.isPending} onClick={() => seedMutation.mutate()}>
+            Seed defaults
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="w-3.5 h-3.5" /> New service
+          </Button>
+        </div>
+      </div>
+
+      {isLoading ? <Spinner /> : (
+        <div className="space-y-2">
+          {services.length === 0 && (
+            <p className="text-center py-12 text-gray-400">No services yet.</p>
+          )}
+          {services.map((s) => (
+            <Card key={s._id}>
+              <div className="flex items-center gap-3">
+                <Wrench className="w-4 h-4 text-gray-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{s.name}</p>
+                  <p className="text-xs text-gray-400">{s.category}{s.description ? ` · ${s.description}` : ''}</p>
+                </div>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${s.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {s.isActive ? 'Active' : 'Inactive'}
+                </span>
+                <button
+                  onClick={() => toggleMutation.mutate(s)}
+                  className="text-xs px-2 py-1 rounded-lg font-medium bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  {s.isActive ? 'Deactivate' : 'Activate'}
+                </button>
+                <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-700 hover:bg-blue-50 transition-colors">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => { if (confirm(`Delete "${s.name}"?`)) deleteMutation.mutate(s._id); }}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Create / Edit modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">{editingService ? 'Edit Service' : 'New Service'}</h3>
+              <button onClick={closeForm} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            {formError && (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{formError}</div>
+            )}
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 block mb-1">Name *</label>
+                <input
+                  value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Plumbing"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 block mb-1">Category *</label>
+                <input
+                  value={category} onChange={(e) => setCategory(e.target.value)}
+                  placeholder="e.g. Home Repair"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 block mb-1">Description</label>
+                <textarea
+                  rows={2} value={description} onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional short description"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={closeForm} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                Cancel
+              </button>
+              <button
+                disabled={!name || !category || saveMutation.isPending}
+                onClick={() => saveMutation.mutate()}
+                className="flex-1 py-2 rounded-xl bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors"
+              >
+                {saveMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
-type Tab = 'users' | 'reports' | 'deposits';
+type Tab = 'users' | 'reports' | 'deposits' | 'services';
 
 export function AdminDashboard() {
   const [tab, setTab] = useState<Tab>('users');
@@ -336,6 +551,7 @@ export function AdminDashboard() {
     { id: 'users', label: 'Users' },
     { id: 'reports', label: 'Reports' },
     { id: 'deposits', label: 'Deposits' },
+    { id: 'services', label: 'Services' },
   ];
 
   return (
@@ -344,7 +560,7 @@ export function AdminDashboard() {
 
       {/* Stats */}
       {statsLoading ? <Spinner /> : stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-8 sm:mb-10">
           <StatCard label="Total Users" value={stats.totalUsers} icon={<Users className="w-5 h-5 text-blue-700" />} color="bg-blue-50" />
           <StatCard label="Total Jobs" value={stats.totalJobs} icon={<Briefcase className="w-5 h-5 text-blue-700" />} color="bg-blue-50" />
           <StatCard label="Active Providers" value={stats.activeProviders} icon={<ShieldCheck className="w-5 h-5 text-green-600" />} color="bg-green-50" />
@@ -373,6 +589,7 @@ export function AdminDashboard() {
       {tab === 'users' && <UsersTab />}
       {tab === 'reports' && <ReportsTab />}
       {tab === 'deposits' && <DepositsTab />}
+      {tab === 'services' && <ServicesTab />}
     </div>
   );
 }

@@ -9,15 +9,22 @@ import {
   WifiOff,
   Briefcase,
   ArrowLeft,
+  Tag,
+  X,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { conversationsApi } from '../../api/conversations.api';
 import { messagesApi } from '../../api/messages.api';
+import { servicesApi } from '../../api/services.api';
 import { Spinner } from '../../components/ui/Spinner';
 import { useAuthStore } from '../../store/auth.store';
 import { useSocket } from '../../hooks/useSocket';
-import type { Conversation, Message, User, ConversationParticipant } from '../../types';
+import type { Conversation, Message, Service, User, ConversationParticipant } from '../../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -101,10 +108,99 @@ function Avatar({
   );
 }
 
+// ─── Offer card (rendered inside chat for offer-type messages) ────────────────
+
+function OfferCard({
+  msg,
+  isMine,
+  myRole,
+  onAccept,
+  onDecline,
+  accepting,
+  declining,
+}: {
+  msg: Message;
+  isMine: boolean;
+  myRole: string | undefined;
+  onAccept: (id: string) => void;
+  onDecline: (id: string) => void;
+  accepting: boolean;
+  declining: boolean;
+}) {
+  const offer = msg.offer ?? null;
+  if (!offer) return null;
+
+  const isPending = offer.status === 'pending';
+  const isAccepted = offer.status === 'accepted';
+  const isDeclined = offer.status === 'declined';
+  const canAct = !isMine && isPending && myRole === 'client';
+
+  return (
+    <div className={clsx(
+      'rounded-2xl border p-4 max-w-xs w-full',
+      isAccepted ? 'border-green-200 bg-green-50' : isDeclined ? 'border-gray-200 bg-gray-50' : 'border-blue-200 bg-blue-50',
+    )}>
+      <div className="flex items-center gap-2 mb-2">
+        <Tag className="w-4 h-4 text-blue-700 shrink-0" />
+        <span className="text-xs font-semibold text-blue-800 uppercase tracking-wide">
+          {isMine ? 'Your Offer' : 'Offer Received'}
+        </span>
+        {isAccepted && <span className="ml-auto text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Accepted</span>}
+        {isDeclined && <span className="ml-auto text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Declined</span>}
+        {isPending && <span className="ml-auto text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Pending</span>}
+      </div>
+
+      <p className="text-sm text-gray-800 mb-3 leading-snug">{offer.description}</p>
+
+      <div className="flex gap-4 text-sm mb-3">
+        <div>
+          <p className="text-xs text-gray-400">Price</p>
+          <p className="font-bold text-gray-900">₦{offer.price.toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-400">Delivery</p>
+          <p className="font-semibold text-gray-700">{offer.deliveryDays} day{offer.deliveryDays !== 1 ? 's' : ''}</p>
+        </div>
+      </div>
+
+      {isAccepted && offer.jobId && (
+        <a
+          href={`/jobs/${offer.jobId}`}
+          className="flex items-center gap-1.5 text-xs text-blue-700 hover:underline"
+        >
+          <ExternalLink className="w-3 h-3" /> View Job
+        </a>
+      )}
+
+      {canAct && (
+        <div className="flex gap-2 mt-1">
+          <button
+            disabled={accepting || declining}
+            onClick={() => onAccept(msg._id)}
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+          >
+            {accepting ? <div className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+            Accept
+          </button>
+          <button
+            disabled={accepting || declining}
+            onClick={() => onDecline(msg._id)}
+            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-xl bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            {declining ? <div className="w-3 h-3 rounded-full border-2 border-gray-400/40 border-t-gray-400 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+            Decline
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ConversationsPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const { isConnected, joinConversation, leaveConversation, on } = useSocket();
 
@@ -114,6 +210,14 @@ export function ConversationsPage() {
   const [localConvs, setLocalConvs] = useState<Conversation[]>([]);
   /** Mobile: show the list or the active chat panel */
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+
+  // Offer modal state (providers only)
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [offerPrice, setOfferPrice] = useState('');
+  const [offerDesc, setOfferDesc] = useState('');
+  const [offerDays, setOfferDays] = useState('');
+  const [offerServiceId, setOfferServiceId] = useState('');
+  const [offerError, setOfferError] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevSelectedId = useRef<string | null>(null);
@@ -129,6 +233,12 @@ export function ConversationsPage() {
     queryKey: ['chatRoom', selectedId],
     queryFn: () => conversationsApi.getAChatRoom(selectedId!),
     enabled: !!selectedId,
+  });
+
+  const { data: services = [] } = useQuery<Service[]>({
+    queryKey: ['services'],
+    queryFn: () => servicesApi.getAll(),
+    enabled: user?.role === 'provider',
   });
 
   useEffect(() => { setLocalConvs(conversations); }, [conversations]);
@@ -187,6 +297,16 @@ export function ConversationsPage() {
     });
   }, [on]);
 
+  useEffect(() => {
+    return on<{ messageId: string; status: string; jobId?: string }>('offer:updated', ({ messageId, status, jobId }) => {
+      setLocalMessages((prev) =>
+        prev.map((m) =>
+          m._id === messageId ? { ...m, offer: { ...(m.offer as any), status, ...(jobId ? { jobId } : {}) } } : m,
+        ),
+      );
+    });
+  }, [on]);
+
   // ─── Mutations ────────────────────────────────────────────────────────────
 
   const sendMutation = useMutation({
@@ -225,6 +345,32 @@ export function ConversationsPage() {
     mutationFn: conversationsApi.markAllAsRead,
     onSuccess: (_, id) => {
       setLocalConvs((prev) => prev.map((c) => (c._id === id ? { ...c, unread: 0 } : c)));
+    },
+  });
+
+  const sendOfferMutation = useMutation({
+    mutationFn: messagesApi.sendOffer,
+    onSuccess: ({ message }) => {
+      setLocalMessages((prev) => prev.find((m) => m._id === message._id) ? prev : [...prev, message]);
+      setShowOfferModal(false);
+      setOfferPrice(''); setOfferDesc(''); setOfferDays(''); setOfferServiceId(''); setOfferError('');
+    },
+    onError: (err: any) => setOfferError(err?.response?.data?.message ?? 'Failed to send offer'),
+  });
+
+  const acceptOfferMutation = useMutation({
+    mutationFn: messagesApi.acceptOffer,
+    onSuccess: ({ job }) => {
+      navigate(`/jobs/${job._id}`);
+    },
+  });
+
+  const declineOfferMutation = useMutation({
+    mutationFn: messagesApi.declineOffer,
+    onSuccess: (_, messageId) => {
+      setLocalMessages((prev) => prev.map((m) =>
+        m._id === messageId && m.offer ? { ...m, offer: { ...m.offer, status: 'declined' as const } } : m,
+      ));
     },
   });
 
@@ -419,7 +565,7 @@ export function ConversationsPage() {
         {/* ── Chat panel ───────────────────────────────────────────────── */}
         <div
           className={clsx(
-            'flex-col min-w-0 bg-white',
+            'flex-col min-w-0 bg-white relative',
             // Mobile: full width when showing chat, hidden when showing list
             mobileView === 'chat' ? 'flex flex-1' : 'hidden',
             // Desktop: always flex-1
@@ -519,32 +665,49 @@ export function ConversationsPage() {
                                   isMine ? 'items-end' : 'items-start',
                                 )}
                               >
-                                <div
-                                  className={clsx(
-                                    'px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words',
-                                    isMine
-                                      ? 'bg-blue-700 text-white rounded-tr-sm'
-                                      : 'bg-gray-100 text-gray-900 rounded-tl-sm',
-                                  )}
-                                >
-                                  {msg.content}
-                                </div>
-                                <div
-                                  className={clsx(
-                                    'flex items-center gap-1 mt-0.5',
-                                    isMine ? 'flex-row-reverse' : 'flex-row',
-                                  )}
-                                >
-                                  <span className="text-[10px] text-gray-400">{formatMsgTime(msg.createdAt)}</span>
-                                  {isMine && (
-                                    <CheckCheck
-                                      className={clsx(
-                                        'w-3 h-3',
-                                        isReadByOther ? 'text-blue-600' : 'text-gray-300',
-                                      )}
+                                {(msg as any).type === 'offer' ? (
+                                  <>
+                                    <OfferCard
+                                      msg={msg}
+                                      isMine={isMine}
+                                      myRole={user?.role}
+                                      onAccept={(id) => acceptOfferMutation.mutate(id)}
+                                      onDecline={(id) => declineOfferMutation.mutate(id)}
+                                      accepting={acceptOfferMutation.isPending}
+                                      declining={declineOfferMutation.isPending}
                                     />
-                                  )}
-                                </div>
+                                    <span className="text-[10px] text-gray-400 mt-0.5">{formatMsgTime(msg.createdAt)}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div
+                                      className={clsx(
+                                        'px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words',
+                                        isMine
+                                          ? 'bg-blue-700 text-white rounded-tr-sm'
+                                          : 'bg-gray-100 text-gray-900 rounded-tl-sm',
+                                      )}
+                                    >
+                                      {msg.content}
+                                    </div>
+                                    <div
+                                      className={clsx(
+                                        'flex items-center gap-1 mt-0.5',
+                                        isMine ? 'flex-row-reverse' : 'flex-row',
+                                      )}
+                                    >
+                                      <span className="text-[10px] text-gray-400">{formatMsgTime(msg.createdAt)}</span>
+                                      {isMine && (
+                                        <CheckCheck
+                                          className={clsx(
+                                            'w-3 h-3',
+                                            isReadByOther ? 'text-blue-600' : 'text-gray-300',
+                                          )}
+                                        />
+                                      )}
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             </div>
                           );
@@ -557,7 +720,17 @@ export function ConversationsPage() {
               </div>
 
               {/* Input */}
-              <div className="px-3 md:px-5 py-3 border-t border-gray-100">
+              <div className="px-3 md:px-5 py-3 border-t border-gray-100 space-y-2">
+                {/* Offer button for providers */}
+                {user?.role === 'provider' && (
+                  <button
+                    onClick={() => setShowOfferModal(true)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    Send Offer
+                  </button>
+                )}
                 <div className="flex gap-2 items-end">
                   <textarea
                     rows={1}
@@ -585,6 +758,102 @@ export function ConversationsPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Offer Modal */}
+              {showOfferModal && (
+                <div className="absolute inset-0 bg-black/40 flex items-end md:items-center justify-center z-20 p-4">
+                  <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-blue-700" />
+                        Send an Offer
+                      </h3>
+                      <button onClick={() => { setShowOfferModal(false); setOfferError(''); }} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {offerError && (
+                      <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{offerError}</div>
+                    )}
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 block mb-1">Description *</label>
+                        <textarea
+                          rows={3}
+                          value={offerDesc}
+                          onChange={(e) => setOfferDesc(e.target.value)}
+                          placeholder="Describe what you will deliver…"
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 block mb-1">Price (₦) *</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={offerPrice}
+                            onChange={(e) => setOfferPrice(e.target.value)}
+                            placeholder="e.g. 5000"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 block mb-1">Delivery (days) *</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={offerDays}
+                            onChange={(e) => setOfferDays(e.target.value)}
+                            placeholder="e.g. 7"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 block mb-1">Service Category *</label>
+                        <select
+                          value={offerServiceId}
+                          onChange={(e) => setOfferServiceId(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        >
+                          <option value="">Select a service…</option>
+                          {services.map((s: Service) => (
+                            <option key={s._id} value={s._id}>{s.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => { setShowOfferModal(false); setOfferError(''); }}
+                        className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={!offerPrice || !offerDesc || !offerDays || !offerServiceId || sendOfferMutation.isPending}
+                        onClick={() => {
+                          if (!selectedId) return;
+                          sendOfferMutation.mutate({
+                            conversationId: selectedId,
+                            price: Number(offerPrice),
+                            description: offerDesc,
+                            deliveryDays: Number(offerDays),
+                            serviceId: offerServiceId,
+                          });
+                        }}
+                        className="flex-1 py-2 rounded-xl bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition-colors"
+                      >
+                        {sendOfferMutation.isPending ? 'Sending…' : 'Send Offer'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

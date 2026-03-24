@@ -78,7 +78,7 @@ export function WalletPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-gray-100">
           <div>
             <p className="text-xs text-gray-400">Commission Owed</p>
             <p className="font-semibold text-amber-600">₦{(wallet?.commissionOwed ?? 0).toLocaleString()}</p>
@@ -132,7 +132,11 @@ export function WalletPage() {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  if (file && file.size > 5 * 1024 * 1024) { alert('Proof image must be under 5 MB'); return; }
+                  setProofFile(file);
+                }}
                 className="w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-800 file:px-3 file:py-1.5 file:text-xs file:font-medium hover:file:bg-blue-100"
               />
             </div>

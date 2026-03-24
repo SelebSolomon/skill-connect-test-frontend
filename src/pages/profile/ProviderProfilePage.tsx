@@ -48,9 +48,9 @@ export function ProviderProfilePage() {
         Back to providers
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Sidebar */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:order-first">
           <Card className="text-center">
             {profile.photoUrl ? (
               <img
@@ -180,7 +180,7 @@ export function ProviderProfilePage() {
                       {item.description && (
                         <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{item.description}</p>
                       )}
-                      {item.link && (
+                      {item.link && /^https?:\/\//.test(item.link) && (
                         <a
                           href={item.link}
                           target="_blank"

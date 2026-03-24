@@ -41,6 +41,17 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // Account banned — clear session and redirect with a message
+    if (error.response?.status === 403) {
+      const msg = (error.response.data as any)?.message ?? '';
+      if (typeof msg === 'string' && msg.toLowerCase().includes('banned')) {
+        localStorage.clear();
+        sessionStorage.setItem('authError', 'Your account has been banned. Please contact support.');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+    }
+
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
 

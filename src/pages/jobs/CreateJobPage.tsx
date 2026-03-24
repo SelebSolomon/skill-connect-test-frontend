@@ -76,10 +76,10 @@ export function CreateJobPage() {
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5 MB'); return; }
+    setPhoto(file);
+    setPhotoPreview(URL.createObjectURL(file));
   };
 
   const addMilestone = () => setMilestones((m) => [...m, { title: '', description: '', amount: '' }]);
@@ -125,7 +125,7 @@ export function CreateJobPage() {
               error={errors.description?.message}
               {...register('description')}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Budget ($)"
                 type="number"

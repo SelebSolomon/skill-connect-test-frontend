@@ -26,7 +26,7 @@ export function useSocket() {
     socket.on('connect', () => setIsConnected(true));
     socket.on('disconnect', () => setIsConnected(false));
     socket.on('exception', (err: { message: string }) => {
-      console.error('[Socket]', err.message);
+      if (import.meta.env.DEV) console.error('[Socket]', err.message);
     });
 
     socketRef.current = socket;

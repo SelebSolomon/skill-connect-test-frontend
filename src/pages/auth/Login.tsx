@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link } from 'react-router-dom';
 import { Zap, Eye, EyeOff, CheckCircle, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useLogin } from '../../hooks/useAuth';
@@ -18,7 +18,16 @@ type FormData = z.infer<typeof schema>;
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [sessionError, setSessionError] = useState('');
   const login = useLogin();
+
+  useEffect(() => {
+    const msg = sessionStorage.getItem('authError');
+    if (msg) {
+      setSessionError(msg);
+      sessionStorage.removeItem('authError');
+    }
+  }, []);
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -106,6 +115,13 @@ export function LoginPage() {
               <h2 className="text-2xl font-bold text-gray-900">Sign in</h2>
               <p className="mt-1.5 text-gray-500 text-sm">Enter your details to access your account</p>
             </div>
+
+            {sessionError && (
+              <div className="mb-5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                <span className="shrink-0 mt-0.5">⚠</span>
+                {sessionError}
+              </div>
+            )}
 
             {login.error && (
               <div className="mb-5 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
