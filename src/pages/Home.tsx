@@ -14,56 +14,86 @@ import { profileApi } from '../api/profile.api';
 import { servicesApi } from '../api/services.api';
 import { useAuthStore } from '../store/auth.store';
 
-// ─── Hero background slideshow — African workers across trades ───────────────
-// Using Unsplash photos of Black African professionals in various skilled trades
+// ─── Hero background slideshow — one slide per trade ────────────────────────
 const HERO_SLIDES = [
   {
-    url: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=1920&q=85&auto=format&fit=crop',
-    label: 'Auto mechanic',
+    // mechanic repairing car engine — hands on engine bay
+    url: 'https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?w=1920&q=85&auto=format&fit=crop',
+    label: 'Auto Mechanic',
   },
   {
-    url: 'https://images.unsplash.com/photo-1520038410233-7141be7e6f97?w=1920&q=85&auto=format&fit=crop',
-    label: 'Hairdresser',
+    // barber / hairdresser cutting client's hair in salon
+    url: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1920&q=85&auto=format&fit=crop',
+    label: 'Barber & Hair',
   },
   {
-    url: 'https://images.unsplash.com/photo-1607400201889-565b1ee75f8e?w=1920&q=85&auto=format&fit=crop',
-    label: 'Carpenter',
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=85&auto=format&fit=crop',
-    label: 'Tailor',
-  },
-  {
+    // carpenter cutting / measuring wood on workbench
     url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1920&q=85&auto=format&fit=crop',
-    label: 'Construction worker',
+    label: 'Carpentry',
+  },
+  {
+    // tailor / seamstress sewing fabric on machine
+    url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=85&auto=format&fit=crop',
+    label: 'Tailoring',
+  },
+  {
+    // electrician working on wiring / electrical panel
+    url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=1920&q=85&auto=format&fit=crop',
+    label: 'Electrical Work',
+  },
+  {
+    // plumber fixing pipe under sink
+    url: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=1920&q=85&auto=format&fit=crop',
+    label: 'Plumbing',
   },
 ];
 
-// ─── Trade showcase cards — African workers ───────────────────────────────────
+// ─── Trade showcase grid ──────────────────────────────────────────────────────
 const TRADES = [
   {
     title: 'Auto Mechanic',
-    url: 'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800&q=80&auto=format&fit=crop',
+    // mechanic under car / engine bay
+    url: 'https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?w=800&q=80&auto=format&fit=crop',
   },
   {
-    title: 'Hair & Beauty',
-    url: 'https://images.unsplash.com/photo-1520038410233-7141be7e6f97?w=800&q=80&auto=format&fit=crop',
+    title: 'Barber & Hair',
+    // barber cutting hair in salon chair
+    url: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80&auto=format&fit=crop',
   },
   {
     title: 'Carpentry',
-    url: 'https://images.unsplash.com/photo-1607400201889-565b1ee75f8e?w=800&q=80&auto=format&fit=crop',
-  },
-  {
-    title: 'Tailoring',
-    url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80&auto=format&fit=crop',
-  },
-  {
-    title: 'Construction',
+    // carpenter with wood / saw on workbench
     url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&q=80&auto=format&fit=crop',
   },
   {
-    title: 'Electrical',
+    title: 'Tailoring',
+    // tailor threading / sewing on machine
+    url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Electrician',
+    // electrician with cables / panel
     url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Plumbing',
+    // plumber with pipe / wrench
+    url: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'House Painting',
+    // painter with roller / wall
+    url: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Welding',
+    // welder with sparks / mask
+    url: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=800&q=80&auto=format&fit=crop',
+  },
+  {
+    title: 'Chef & Catering',
+    // chef cooking / preparing food in kitchen
+    url: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80&auto=format&fit=crop',
   },
 ];
 
