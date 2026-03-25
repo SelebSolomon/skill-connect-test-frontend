@@ -26,6 +26,7 @@ export function JobDetailPage() {
   const { user, isAuthenticated } = useAuthStore();
   const [bidModalOpen, setBidModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [bidAmount, setBidAmount] = useState('');
   const [bidDays, setBidDays] = useState('');
@@ -50,6 +51,7 @@ export function JobDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: () => jobsApi.deleteJob(id!),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['jobs'] }); navigate('/jobs/my'); },
+    onError: (err) => setDeleteError(getErrorMessage(err)),
   });
 
   const completeMutation = useMutation({
@@ -158,7 +160,13 @@ export function JobDetailPage() {
                       <Pencil className="w-4 h-4" />
                     </Button>
                   </Link>
-                  <Button variant="danger" size="sm" onClick={() => setDeleteModalOpen(true)}>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={job.status !== 'open'}
+                    title={job.status !== 'open' ? 'Only open jobs can be deleted' : 'Delete job'}
+                    onClick={() => { setDeleteError(''); setDeleteModalOpen(true); }}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -413,7 +421,12 @@ export function JobDetailPage() {
 
       {/* Delete Modal */}
       <Modal open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Delete Job" size="sm">
-        <p className="text-gray-600 mb-6">Are you sure you want to delete this job? This cannot be undone.</p>
+        <p className="text-gray-600 mb-4">Are you sure you want to delete this job? This cannot be undone.</p>
+        {deleteError && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+            {deleteError}
+          </div>
+        )}
         <div className="flex gap-3">
           <Button variant="outline" fullWidth onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
           <Button variant="danger" fullWidth loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
