@@ -57,12 +57,15 @@ export function JobDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['job', id] }),
   });
 
+  const [assignError, setAssignError] = useState('');
   const assignProviderMutation = useMutation({
     mutationFn: (providerId: string) => jobsApi.assignProvider(id!, providerId),
     onSuccess: () => {
+      setAssignError('');
       queryClient.invalidateQueries({ queryKey: ['job', id] });
       queryClient.invalidateQueries({ queryKey: ['job-bids', id] });
     },
+    onError: (err) => setAssignError(getErrorMessage(err)),
   });
 
   const submitReviewMutation = useMutation({
@@ -235,6 +238,11 @@ export function JobDetailPage() {
           {isOwner && bids && bids.length > 0 && (
             <div>
               <h3 className="font-semibold text-gray-900 mb-4">Bids ({bids.length})</h3>
+              {assignError && (
+                <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                  {assignError}
+                </div>
+              )}
               <div className="space-y-4">
                 {bids.map((bid: any) => (
                   <BidCard

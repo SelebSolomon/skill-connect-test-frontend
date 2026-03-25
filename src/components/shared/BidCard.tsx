@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { DollarSign, Clock, Calendar, UserCheck, User, MessageSquare } from 'lucide-react';
+import { DollarSign, Clock, Calendar, UserCheck, User, MessageSquare, BadgeCheck } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { bidStatusBadge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -97,12 +97,17 @@ export function BidCard({ bid, showJob = true, onAssign, isAssigning }: BidCardP
           <Calendar className="w-3.5 h-3.5" />
           Submitted {format(new Date(bid.createdAt), 'MMM d, yyyy')}
         </div>
-        {canAssign && (
+        {bid.status === 'accepted' ? (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-sm font-semibold">
+            <BadgeCheck className="w-4 h-4" />
+            Assigned
+          </span>
+        ) : canAssign ? (
           <Button size="sm" loading={isAssigning} onClick={() => onAssign(bid)}>
             <UserCheck className="w-4 h-4" />
             Assign Provider
           </Button>
-        )}
+        ) : null}
       </div>
     </Card>
   );
