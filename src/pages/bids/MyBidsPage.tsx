@@ -1,17 +1,134 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gavel } from 'lucide-react';
-import { bidsApi } from '../../api/bids.api';
+import { Gavel, Pencil } from 'lucide-react';
+import { bidsApi, type UpdateBidDto } from '../../api/bids.api';
 import { BidCard } from '../../components/shared/BidCard';
 import { Spinner } from '../../components/ui/Spinner';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { useState } from 'react';
 import { getErrorMessage } from '../../hooks/useErrorMessage';
+import type { Bid } from '../../types';
 
+// ─── Edit Bid Form ────────────────────────────────────────────────────────────
+function EditBidModal({
+  bid,
+  onClose,
+}: {
+  bid: Bid;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [price, setPrice] = useState(String(bid.proposedPrice));
+  const [duration, setDuration] = useState(String(bid.estimatedDuration));
+  const [message, setMessage] = useState(bid.message ?? '');
+  const [error, setError] = useState('');
+
+  const updateMutation = useMutation({
+    mutationFn: (dto: UpdateBidDto) => bidsApi.updateBid(bid._id, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-bids'] });
+      onClose();
+    },
+    onError: (err) => setError(getErrorMessage(err)),
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+
+    const parsedPrice = Number(price);
+    const parsedDuration = Number(duration);
+
+    if (!parsedPrice || parsedPrice <= 0) {
+      setError('Proposed price must be a positive number');
+      return;
+    }
+    if (!parsedDuration || parsedDuration < 1) {
+      setError('Estimated duration must be at least 1 day');
+      return;
+    }
+
+    const dto: UpdateBidDto = {};
+    if (parsedPrice !== bid.proposedPrice) dto.proposedPrice = parsedPrice;
+    if (parsedDuration !== bid.estimatedDuration) dto.estimatedDuration = parsedDuration;
+    if (message.trim() !== (bid.message ?? '')) dto.message = message.trim();
+
+    if (Object.keys(dto).length === 0) {
+      setError('No changes detected');
+      return;
+    }
+
+    updateMutation.mutate(dto);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Proposed Price (₦)
+        </label>
+        <input
+          type="number"
+          min={1}
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Estimated Duration (days)
+        </label>
+        <input
+          type="number"
+          min={1}
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Message (optional)
+        </label>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          rows={3}
+          maxLength={1000}
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+        <p className="text-xs text-gray-400 mt-1 text-right">{message.length}/1000</p>
+      </div>
+
+      {error && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <div className="flex gap-3 pt-1">
+        <Button type="button" variant="outline" fullWidth onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" fullWidth loading={updateMutation.isPending}>
+          Save Changes
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export function MyBidsPage() {
   const queryClient = useQueryClient();
   const [withdrawId, setWithdrawId] = useState<string | null>(null);
-  const [error, setError] = useState('');
+  const [editBid, setEditBid] = useState<Bid | null>(null);
+  const [withdrawError, setWithdrawError] = useState('');
 
   const { data: bids, isLoading } = useQuery({
     queryKey: ['my-bids'],
@@ -24,7 +141,7 @@ export function MyBidsPage() {
       queryClient.invalidateQueries({ queryKey: ['my-bids'] });
       setWithdrawId(null);
     },
-    onError: (err) => setError(getErrorMessage(err)),
+    onError: (err) => setWithdrawError(getErrorMessage(err)),
   });
 
   if (isLoading) return <Spinner fullPage />;
@@ -51,11 +168,19 @@ export function MyBidsPage() {
             <div key={bid._id} className="relative">
               <BidCard bid={bid} />
               {bid.status === 'pending' && (
-                <div className="mt-2 flex justify-end">
+                <div className="mt-2 flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditBid(bid)}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit Bid
+                  </Button>
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => setWithdrawId(bid._id)}
+                    onClick={() => { setWithdrawError(''); setWithdrawId(bid._id); }}
                   >
                     Withdraw Bid
                   </Button>
@@ -66,13 +191,33 @@ export function MyBidsPage() {
         </div>
       )}
 
-      <Modal open={!!withdrawId} onClose={() => setWithdrawId(null)} title="Withdraw Bid" size="sm">
+      {/* Edit Modal */}
+      <Modal
+        open={!!editBid}
+        onClose={() => setEditBid(null)}
+        title="Edit Bid"
+        size="md"
+      >
+        {editBid && <EditBidModal bid={editBid} onClose={() => setEditBid(null)} />}
+      </Modal>
+
+      {/* Withdraw Confirmation Modal */}
+      <Modal
+        open={!!withdrawId}
+        onClose={() => setWithdrawId(null)}
+        title="Withdraw Bid"
+        size="sm"
+      >
         <p className="text-gray-600 mb-6">Are you sure you want to withdraw this bid?</p>
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{error}</div>
+        {withdrawError && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+            {withdrawError}
+          </div>
         )}
         <div className="flex gap-3">
-          <Button variant="outline" fullWidth onClick={() => setWithdrawId(null)}>Cancel</Button>
+          <Button variant="outline" fullWidth onClick={() => setWithdrawId(null)}>
+            Cancel
+          </Button>
           <Button
             variant="danger"
             fullWidth

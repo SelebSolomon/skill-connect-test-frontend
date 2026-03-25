@@ -39,7 +39,11 @@ export function useNotifications() {
       reconnectionDelay: 2000,
     });
 
-    socket.on('connect', () => setSocketConnected(true));
+    socket.on('connect', () => {
+      setSocketConnected(true);
+      // Refetch on reconnect to catch any notifications missed while offline
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    });
     socket.on('disconnect', () => setSocketConnected(false));
     socket.on('connect_error', () => setSocketConnected(false));
 
