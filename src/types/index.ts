@@ -419,8 +419,10 @@ export interface AdminUser {
   roleName: string;
   emailVerified: boolean;
   banned: boolean;
+  banReason?: string;
   isActive: boolean;
   walletBalance: number;
+  isVerified: boolean;
   createdAt: string;
 }
 

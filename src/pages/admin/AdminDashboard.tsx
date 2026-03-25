@@ -33,12 +33,30 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
   );
 }
 
+// ─── Verification badge ─────────────────────────────────────────────────────────
+export function VerifiedBadge({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+  const cls = size === 'md' ? 'w-5 h-5' : 'w-3.5 h-3.5';
+  return (
+    <span title="Verified provider" className="inline-flex shrink-0">
+      <CheckCircle2 className={`${cls} text-blue-500 fill-blue-500`} style={{ color: '#3b82f6' }} />
+    </span>
+  );
+}
+
 // ─── Users tab ─────────────────────────────────────────────────────────────────
+type ActionType = 'ban' | 'unban' | 'verify' | 'unverify';
+
 function UsersTab() {
   const [search, setSearch] = useState('');
   const [roleName, setRoleName] = useState('');
   const [page, setPage] = useState(1);
   const qc = useQueryClient();
+
+  // Confirmation modal state
+  const [actionTarget, setActionTarget] = useState<{ user: AdminUser; action: ActionType } | null>(null);
+  const [banReason, setBanReason] = useState('');
+  const [verifyNotes, setVerifyNotes] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users', { search, roleName, page }],
@@ -46,16 +64,116 @@ function UsersTab() {
   });
 
   const banMutation = useMutation({
-    mutationFn: ({ userId, banned }: { userId: string; banned: boolean }) =>
-      adminApi.banUser(userId, banned),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+    mutationFn: ({ userId, banned, reason }: { userId: string; banned: boolean; reason?: string }) =>
+      adminApi.banUser(userId, banned, reason),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-users'] }); closeModal(); },
+    onError: (err: any) => setActionError(err?.response?.data?.message ?? 'Action failed'),
   });
 
   const verifyMutation = useMutation({
-    mutationFn: ({ userId, verified }: { userId: string; verified: boolean }) =>
-      adminApi.verifyProvider(userId, verified),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
+    mutationFn: ({ userId, verified, notes }: { userId: string; verified: boolean; notes?: string }) =>
+      adminApi.verifyProvider(userId, verified, notes),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-users'] }); closeModal(); },
+    onError: (err: any) => setActionError(err?.response?.data?.message ?? 'Action failed'),
   });
+
+  function openAction(user: AdminUser, action: ActionType) {
+    setBanReason('');
+    setVerifyNotes('');
+    setActionError('');
+    setActionTarget({ user, action });
+  }
+
+  function closeModal() {
+    setActionTarget(null);
+    setBanReason('');
+    setVerifyNotes('');
+    setActionError('');
+  }
+
+  function confirmAction() {
+    if (!actionTarget) return;
+    const { user, action } = actionTarget;
+    if (action === 'ban') {
+      banMutation.mutate({ userId: user._id, banned: true, reason: banReason || undefined });
+    } else if (action === 'unban') {
+      banMutation.mutate({ userId: user._id, banned: false });
+    } else if (action === 'verify') {
+      verifyMutation.mutate({ userId: user._id, verified: true, notes: verifyNotes || undefined });
+    } else if (action === 'unverify') {
+      verifyMutation.mutate({ userId: user._id, verified: false });
+    }
+  }
+
+  const isPending = banMutation.isPending || verifyMutation.isPending;
+
+  // Action buttons for a user row
+  function ActionButtons({ u }: { u: AdminUser }) {
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {u.banned ? (
+          <button
+            onClick={() => openAction(u, 'unban')}
+            className="text-xs px-2 py-1 rounded-lg font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+          >
+            Unban
+          </button>
+        ) : (
+          <button
+            onClick={() => openAction(u, 'ban')}
+            className="text-xs px-2 py-1 rounded-lg font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+          >
+            Ban
+          </button>
+        )}
+        {u.roleName === 'provider' && (
+          u.isVerified ? (
+            <button
+              onClick={() => openAction(u, 'unverify')}
+              className="text-xs px-2 py-1 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+            >
+              Unverify
+            </button>
+          ) : (
+            <button
+              onClick={() => openAction(u, 'verify')}
+              className="text-xs px-2 py-1 rounded-lg font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              Verify
+            </button>
+          )
+        )}
+      </div>
+    );
+  }
+
+  // Modal config per action
+  const modalConfig: Record<ActionType, { title: string; description: (name: string) => string; confirmLabel: string; confirmClass: string }> = {
+    ban: {
+      title: 'Ban User',
+      description: (name) => `Are you sure you want to ban ${name}? They will lose access to the platform.`,
+      confirmLabel: 'Ban User',
+      confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+    },
+    unban: {
+      title: 'Unban User',
+      description: (name) => `Are you sure you want to unban ${name}? They will regain full access to the platform.`,
+      confirmLabel: 'Unban User',
+      confirmClass: 'bg-green-600 hover:bg-green-700 text-white',
+    },
+    verify: {
+      title: 'Verify Provider',
+      description: (name) => `Grant ${name} a verified badge. This signals they are a trusted provider on the platform.`,
+      confirmLabel: 'Verify',
+      confirmClass: 'bg-blue-600 hover:bg-blue-700 text-white',
+    },
+    unverify: {
+      title: 'Remove Verification',
+      description: (name) => `Remove the verified badge from ${name}.`,
+      confirmLabel: 'Remove Verification',
+      confirmClass: 'bg-gray-700 hover:bg-gray-800 text-white',
+    },
+  };
 
   return (
     <div className="space-y-4">
@@ -95,7 +213,12 @@ function UsersTab() {
               <tbody className="divide-y divide-gray-50">
                 {data?.users.map((u: AdminUser) => (
                   <tr key={u._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 font-medium text-gray-900">
+                        {u.name}
+                        {u.isVerified && <VerifiedBadge />}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-gray-500 max-w-[160px] truncate">{u.email}</td>
                     <td className="px-4 py-3">
                       <span className="capitalize text-xs font-medium bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full">
@@ -113,26 +236,7 @@ function UsersTab() {
                       {u.createdAt ? format(new Date(u.createdAt), 'MMM d, yyyy') : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => banMutation.mutate({ userId: u._id, banned: !u.banned })}
-                          className={`text-xs px-2 py-1 rounded-lg font-medium transition-colors ${
-                            u.banned
-                              ? 'bg-green-50 text-green-700 hover:bg-green-100'
-                              : 'bg-red-50 text-red-600 hover:bg-red-100'
-                          }`}
-                        >
-                          {u.banned ? 'Unban' : 'Ban'}
-                        </button>
-                        {u.roleName === 'provider' && (
-                          <button
-                            onClick={() => verifyMutation.mutate({ userId: u._id, verified: true })}
-                            className="text-xs px-2 py-1 rounded-lg font-medium bg-blue-50 text-blue-800 hover:bg-blue-100 transition-colors"
-                          >
-                            Verify
-                          </button>
-                        )}
-                      </div>
+                      <ActionButtons u={u} />
                     </td>
                   </tr>
                 ))}
@@ -146,7 +250,10 @@ function UsersTab() {
               <div key={u._id} className="rounded-xl border border-gray-100 bg-white p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{u.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-gray-900 truncate">{u.name}</p>
+                      {u.isVerified && <VerifiedBadge />}
+                    </div>
                     <p className="text-xs text-gray-500 truncate">{u.email}</p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -160,26 +267,7 @@ function UsersTab() {
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-400">
                   <span>Joined {u.createdAt ? format(new Date(u.createdAt), 'MMM d, yyyy') : '—'}</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => banMutation.mutate({ userId: u._id, banned: !u.banned })}
-                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
-                        u.banned
-                          ? 'bg-green-50 text-green-700 hover:bg-green-100'
-                          : 'bg-red-50 text-red-600 hover:bg-red-100'
-                      }`}
-                    >
-                      {u.banned ? 'Unban' : 'Ban'}
-                    </button>
-                    {u.roleName === 'provider' && (
-                      <button
-                        onClick={() => verifyMutation.mutate({ userId: u._id, verified: true })}
-                        className="px-2.5 py-1 rounded-lg font-medium bg-blue-50 text-blue-800 hover:bg-blue-100 transition-colors"
-                      >
-                        Verify
-                      </button>
-                    )}
-                  </div>
+                  <ActionButtons u={u} />
                 </div>
               </div>
             ))}
@@ -201,6 +289,81 @@ function UsersTab() {
           )}
         </>
       )}
+
+      {/* ── Confirmation modal ───────────────────────────────────────────── */}
+      {actionTarget && (() => {
+        const cfg = modalConfig[actionTarget.action];
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-lg font-semibold text-gray-900">{cfg.title}</h3>
+                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Description */}
+              <p className="text-sm text-gray-600">{cfg.description(actionTarget.user.name)}</p>
+
+              {/* Ban reason textarea */}
+              {actionTarget.action === 'ban' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Reason <span className="text-gray-400">(optional)</span>
+                  </label>
+                  <textarea
+                    value={banReason}
+                    onChange={(e) => setBanReason(e.target.value)}
+                    placeholder="Explain why this user is being banned..."
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none"
+                  />
+                </div>
+              )}
+
+              {/* Verify notes textarea */}
+              {actionTarget.action === 'verify' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Verification notes <span className="text-gray-400">(optional)</span>
+                  </label>
+                  <textarea
+                    value={verifyNotes}
+                    onChange={(e) => setVerifyNotes(e.target.value)}
+                    placeholder="Add any notes about this verification..."
+                    rows={3}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none"
+                  />
+                </div>
+              )}
+
+              {/* Error */}
+              {actionError && (
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{actionError}</p>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={closeModal}
+                  className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAction}
+                  disabled={isPending}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${cfg.confirmClass}`}
+                >
+                  {isPending ? 'Working…' : cfg.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
